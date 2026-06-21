@@ -1,0 +1,61 @@
+Walking Skeleton #1:
+A user visits my site, sees an editable HTML document and a preview pane, clicks 'Run' to render their edits, and can send a URL to a friend who opens the same project and sees the same rendered page.
+Elephant Capaccio Attemp #4
+1. Landing Page(/)
+2. autogenerate projectId and redirect to /project/:projectId/edit
+3. HTML Editor Panel => display only no editing
+4. Add User Input capabilites to the editor => they should be able to type text in the box similar to a textarea
+5. Add retention to the editor => it should retain its content across page reloads by saving to a database(mongodb?) on change(~need to debounce so every 2s or so?) it should
+be saved as project id, with a files collection. On page load, the editor will load the content from the database and display it in the editor panel where
+it finds a matching projectId.
+6. Add Render button to HTML Editor Panel, which triggers the preview panel to render the edited HTML. The backend application should retrieve the HTML content from mongodb and return it to the preview panel inserted into an iframe.
+
+
+Addendums:
+Slice
+3(a) A framework for onchange event handling would make this a lot easier. Right now I'm handling it manually via a script tag in the html manually adding a event listener to the textarea.
+3(b) The endpoint to return a static html file cannot also return json(Well can't be done easily with without some hackery).
+
+
+Walking Skeleton #2:
+User editing a project sees an HTML file and a CSS file, and when the HTML references the CSS file via <link>, the rendered preview correctly applies the CSS.
+Elephant Carpaccio Attempt #1
+1. Add 'File Selection' Panel => display only no functionality, shows html file and css file selections(hardcoded)
+2. Add onclick event to html file to show the html file in the editor panel
+3. Add onclick event to css file to show the css file in the editor panel
+4. Add persistence to the html editor panel => it should retain its content across 'clicks' from file selection panel
+5. Add user input capabilities for the css editor panel => they should be able to type text in the box similar to a textarea
+6. Add retention to the css editor panel => it should retain its content across page reloads by saving to a database(mongodb?) on change(~need to debounce so every 2s or so?) it should
+be saved as project id with css as the property name.
+7. Add persistence to the css editor panel => it should retain its content across 'clicks' from file selection panel
+8. The render button should render the css file in the preview panel. The backend application should retrieve the css content from mongodb and return it to the preview panel inserted into an iframe. Probably using the postMessage API?
+9. Refactor the editor panel to differentiate between html and css files(should show the current active file in the editor panel) and save the content to the database as project.files.html or project.files.css?
+
+
+Elephant Carpaccio Attempt #2
+1. Add 'File Selection' Panel => display only no functionality, shows html file and css file selections(hardcoded)
+2. Add selection to the 'File Selection' panel, refactor the editor panel to differentiate between html and css files(should show the current active file in the editor panel)
+3. The render button should render the applied css file in the preview panel.
+4. The shared page(/project/{projectId}/render) should render the html file and the applied css file to the page, we create a new /project/{projectId}/file/{fileName} endpoint to serve the files, at /project/{projectId}/render
+
+Elephant Carpaccio Attempt #3
+1. Add 'File Selection' Panel => display only no functionality, shows html file and css file selections(hardcoded)
+2. Add selection to the 'File Selection' panel, refactor the editor panel to differentiate between html and css files(should show the current active file in the editor panel) css files saved to the database as project.css?
+3. Refactor the application to save the content to the database as project.files.html or project.files.css?
+4. Wire the render button to show the applied css file in the preview panel
+5. The shared page(/project/{projectId}/render) should render the html file and the applied css file to the page, we create a new /project/{projectId}/{fileName} endpoint to serve the files, at /project/{projectId}/render
+
+Elephant Carpaccio Attempt #4
+1. File selection panel — display only, hardcoded items.
+2. Schema migration — project.html becomes project.files['index.html']. Existing editor still works. (Invisible plumbing slice.)
+3. Clicking a file in the panel switches the editor content. CSS file edits save to project.files['style.css'].
+4. Add GET /project/:id/:filename endpoint. Demo: hit it directly, see file contents.
+5. Render endpoint's HTML includes <link href="style.css">. Browser fetches CSS via the slice-4 endpoint. Preview shows styled output.
+
+Learnings:
+Can't use srcDoc as relative paths don't work, which won't allows us to apply the css file similar what we would do in a real world scenario.
+Grouping state into a single object seems to be good idea in this case as we don't need to worry about juggling state between the html and css edits for the editor panel.
+We can use the same endpoint for both html and css files, also website hrefs are relative to the url path you are currently on.
+Backend will need to be refactored soonish since it's not very clean. A lot of repittion and coupling. Will introduce a lot of bugs. Will add tests => refactor => start TDD going forward.
+I have broken the render page. Since react router uses client side routing, so I need to figure out how to have the webpage render the html and css files without using an iframe.
+- The solution was to reuse the /project/:id endpoint and to use dangerouslySetInnerHTML to render the html and css files. The css files are applied via a style tag in the html since dangerouslySetInnerHTML doesn't fetch the css files.

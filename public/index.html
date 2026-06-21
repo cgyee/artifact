@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finio</title>
+    <script>
+        window.onload = function () {
+            txtArea = document.getElementsByTagName('textarea')[0];
+            preview = document.getElementById('preview');
+            urlPath = window.location.pathname;
+            projectId = urlPath.split('/')[2];
+            request = fetch(`http://localhost:8080/project/${projectId}`).then(res => res.json()).then(res => {
+                txtArea.value = res.content
+                preview.srcdoc = res.content
+            });
+            addEventListener('change', function () {
+                fetch(`http://localhost:8080/project/${projectId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: txtArea.value
+                    })
+                }).then(res => {
+                    console.log("woot")
+                }, err => console.log(err))
+                preview.srcdoc = txtArea.value
+            })
+        }
+    </script>
+
+</head>
+<body>
+<div >
+    <div>
+        <textarea title="Editor" onchange="console.log('change')"></textarea>
+    </div>
+    <div>
+                    <iframe id="preview" title="Preview"></iframe>
+    </div>
+</div>
+</body>
+</html>
