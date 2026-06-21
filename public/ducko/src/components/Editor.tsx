@@ -13,7 +13,7 @@ type Project = {
     id: string,
     files: Files
 }
-const api = "http://localhost:8080"
+const api = "/api"
 
 // Stable shell loaded once into the iframe. It listens for postMessage and
 // swaps body content without reloading the document — avoiding the srcdoc flash.
@@ -37,10 +37,10 @@ async function fetchProject(id: string) {
         const res = await fetch(`${api}/project/${id}`, {
             method: "GET",
         })
+        console.info("res: ", res)
         const project: Project = await res.json()
         console.info("project: ", project)
-        if (!project?.files) return emptyProject
-
+        if (!res.ok) return emptyProject
         return project
     } catch (e) {
         console.error(e)
@@ -93,6 +93,7 @@ const Editor = ({selection}: {selection: string}) => {
 
     useEffect(() => {
         (async () => {
+            if (!projectId) return  // guard against empty initial value
             const project = await fetchProject(projectId)
             if (!project.files) return
             const html = project.files.html ?? {type: "html", content: ""}
@@ -123,3 +124,4 @@ const Editor = ({selection}: {selection: string}) => {
 }
 
 export default Editor
+

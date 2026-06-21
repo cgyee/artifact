@@ -1,12 +1,11 @@
 import './App.css'
-import {Navigate} from "react-router";
+import {useEffect} from 'react'
 
 function App() {
-
-  const projectId  = crypto.randomUUID()
-  return (
-      <Navigate to={`/project/${projectId}`} />
-  )
+  useEffect(() => {
+    window.location.replace('/api/project/new')
+  }, [])
+  return null
 }
 
 export default App

@@ -36,6 +36,15 @@ func root(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
 
+func newProject(w http.ResponseWriter, r *http.Request) {
+	var projectID string
+	if id, err := uuid.NewUUID(); err == nil {
+		projectID = id.String()
+	}
+	url := fmt.Sprintf("/project/%s", projectID)
+	http.Redirect(w, r, url, http.StatusSeeOther)
+}
+
 func files(w http.ResponseWriter, r *http.Request) {
 	project := Project{}
 	project.ID = r.PathValue("projectID")
@@ -87,6 +96,7 @@ func edit(w http.ResponseWriter, r *http.Request) {
 				project.Files["html"] = File{FileType: "html", Content: ""}
 				project.Files["css"] = File{FileType: "css", Content: ""}
 				w.WriteHeader(http.StatusNotFound)
+				return
 			}
 			fmt.Println(err)
 		}
@@ -97,6 +107,7 @@ func edit(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
 		w.Write(data)
+		return
 
 	case "POST", "PUT":
 		fmt.Println("POST")
@@ -187,6 +198,12 @@ func main() {
 	mux.HandleFunc("/project/{projectID}/render", render)
 	mux.HandleFunc("/project/{projectID}/render/{fileName}", files)
 	mux.HandleFunc("/project/{projectID}/{fileName}", files)
+	mux.HandleFunc("/api/project/new", newProject)
+	mux.HandleFunc("/api/project/{projectID}", edit)
+	mux.HandleFunc("/api/project/{projectID}/render", render)
+	mux.HandleFunc("/api/project/{projectID}/{fileName}", files)
+	mux.HandleFunc("/preview/{projectID}", render)
+	mux.HandleFunc("/preview/{projectID}/{fileName}", files)
 
 	fmt.Println("Listening on port http://localhost:8080")
 	http.ListenAndServe(":8080", mux)
