@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -98,18 +101,16 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	switch fileName {
-	case "style.css":
-		w.Header().Set("Content-Type", "text/css")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files["css"].Content)))
-		w.Write([]byte(project.Files["css"].Content))
-		return
-	case "index.html":
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files["html"].Content)))
-		w.Write([]byte(project.Files["html"].Content))
-		return
+	ext := filepath.Ext(fileName)
+	contentType := mime.TypeByExtension(ext)
+	file := strings.TrimPrefix(ext, ".")
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[file].Content)))
+	w.Write([]byte(project.Files[file].Content))
+	return
 }
 
 func (h *Handler) render(w http.ResponseWriter, r *http.Request) {

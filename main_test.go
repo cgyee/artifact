@@ -193,7 +193,7 @@ func TestFile_ServesCSSWithCorrectContentType(t *testing.T) {
 	}
 	defer res.Body.Close()
 
-	if ct := res.Header.Get("Content-Type"); ct != "text/css" {
+	if ct := res.Header.Get("Content-Type"); ct != "text/css; charset=utf-8" {
 		t.Errorf("content-type = %q, want text/css", ct)
 	}
 	body, _ := io.ReadAll(res.Body)
