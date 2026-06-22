@@ -1,6 +1,5 @@
 import {useMemo, useState} from "react";
-import type {File,} from "../pages/Edit.tsx";
-
+import type {File} from "../types";
 type Props = {
     src: string
     name: string
