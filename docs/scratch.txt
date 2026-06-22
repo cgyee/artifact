@@ -11,7 +11,7 @@ it finds a matching projectId.
 6. Add Render button to HTML Editor Panel, which triggers the preview panel to render the edited HTML. The backend application should retrieve the HTML content from mongodb and return it to the preview panel inserted into an iframe.
 
 
-Addendums:
+Learnings:
 Slice
 3(a) A framework for onchange event handling would make this a lot easier. Right now I'm handling it manually via a script tag in the html manually adding a event listener to the textarea.
 3(b) The endpoint to return a static html file cannot also return json(Well can't be done easily with without some hackery).
@@ -66,3 +66,26 @@ JS executes in the preview on load
 1. Need to refactor the frontend Project type to include a js property
 2. Add a javascript selection to the 'file explorer', Skeleton #2 Slices 1 - file selection panel and 3 - file explorer switching, should take care of the editor panel just need to add the js file selection
 3. I write <script src="app.js"></script> in index.html, alert('hello') in app.js, click Play, see the alert
+
+Walking Skeleton #4:
+Elephant Carpaccio Attempt #1
+A user can create a new file with a name they choose, rename an existing file, and delete a file — via the file explorer.
+0. (refactor, invisible to user): Storage migrates from type-key (files["html"]) to filename-key (files["index.html"]). Editor's read/write logic and any backend lookups all switch to the filename convention.  No user-visible change — demo is "everything still works after migration."
+1. (refactor invisible to user): Add patch to the /project/:id endpoint to accept a old filename and new filename content.
+2. Create a 'File Input' Modal. With and 'Accept/Enter' and 'Cancel'. Probably needs a better name.
+3. Input Modal should prompt the user for a filename + extension.
+4. Add input validation to the modal. It should only accept filenames that are valid filenames: no spaces, no leading or trailing slashes, no double periods, only allowed extensions(.html, .css, .js.), etc. Filenames should be unique to their extension. File should be saved to the database as project.files[filename].
+5. Input Modal should POST/PUT the current file(s) to the database.
+6. Add a new file button (+) to the file explorer.
+7. Wire the new file button to the input modal.
+8. Add a rename file button (pencil) to the file explorer.
+9. Wire the rename file button to the input modal.
+10. Add a delete file button (trash) to the file explorer.
+11. Add functionality to the delete file button. It does not need to prompt the user for confirmation.
+
+Elephant Carpaccio Attempt #2
+0. (refactor, invisible to user): Storage migrates from type-key (files["html"]) to filename-key (files["index.html"]). Editor's read/write logic and any backend lookups all switch to the filename convention. No user-visible change — demo is "everything still works after migration.". File explore must also read files from the project and not just the hardcoded values.
+1. Create a '+' button in the file explorer, clicking => window.prompt("filename") file is added to the projects files map with empty content. File appears in the file explorer, user can select and edit it.
+2. Add input validation. It should only accept filenames that are valid filenames: no spaces, no leading or trailing slashes, no double periods, only allowed extensions(.html, .css, .js.), etc. Filenames should be unique to their extension. File should be saved to the database as project.files[filename]. Typing an invalid name displays an error message.
+3. Renmae click the 'Rename' button in the file explorer => window.prompt("new filename") => file is renamed in the projects files map. If a renamed file was selected, selection follows rename. Probably prevent renaming 'core' files like index.html, style.css, and app.js as we need a simple entrypoint for the preview to render.
+4. Delete click the 'Delete' button in the file explorer => window.confirm("Are you sure you want to delete this file?") => file is deleted from the projects files map. If a currently selected file was deleted, show an empty editor. Probably prevent deleting 'core' files like index.html, style.css, and app.js.

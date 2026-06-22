@@ -17,6 +17,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+const (
+	indexFile = "index.html"
+	cssFile   = "styles.css"
+	jsFile    = "app.js"
+)
+
 var (
 	testServer *httptest.Server
 	testColl   *mongo.Collection
@@ -45,10 +51,6 @@ func TestMain(m *testing.M) {
 
 	p := project.NewProjectHandler(project.NewMongoRepository("test"))
 	p.Routes(mux)
-	//mux.HandleFunc("/api/project/new", newProject)
-	//mux.HandleFunc("/api/project/{projectID}", edit)
-	//mux.HandleFunc("/api/project/{projectID}/render", render)
-	//mux.HandleFunc("/api/project/{projectID}/{fileName}", files)
 
 	testServer = httptest.NewServer(mux)
 	defer testServer.Close()
@@ -91,7 +93,7 @@ func TestGetProject_Existing_ReturnsJSON(t *testing.T) {
 	seedProject(t, project.Project{
 		ID: "abc",
 		Files: map[string]project.File{
-			"html": {FileType: "html", Content: "<h1>hi</h1>"},
+			indexFile: {FileType: "html", Content: "<h1>hi</h1>"},
 		},
 	})
 
@@ -112,8 +114,8 @@ func TestGetProject_Existing_ReturnsJSON(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.Files["html"].Content != "<h1>hi</h1>" {
-		t.Errorf("html = %q, want %q", got.Files["html"].Content, "<h1>hi</h1>")
+	if got.Files[indexFile].Content != "<h1>hi</h1>" {
+		t.Errorf("html = %q, want %q", got.Files[indexFile].Content, "<h1>hi</h1>")
 	}
 }
 
@@ -134,7 +136,7 @@ func TestGetProject_NotFound_Returns404(t *testing.T) {
 func TestSaveProject_Persists(t *testing.T) {
 	resetDB(t)
 
-	body := strings.NewReader(`{"files":{"html":{"type":"html","content":"<p>new</p>"}}}`)
+	body := strings.NewReader(fmt.Sprintf(`{"id":"xyz","files":{"%s":{"fileType":"html","content":"<p>new</p>"}}}`, indexFile))
 	res, err := http.Post(testServer.URL+"/api/project/xyz", "application/json", body)
 	if err != nil {
 		t.Fatal(err)
@@ -149,8 +151,8 @@ func TestSaveProject_Persists(t *testing.T) {
 	if err := testColl.FindOne(context.TODO(), bson.M{"id": "xyz"}).Decode(&got); err != nil {
 		t.Fatalf("not in db: %v", err)
 	}
-	if got.Files["html"].Content != "<p>new</p>" {
-		t.Errorf("stored = %q, want %q", got.Files["html"].Content, "<p>new</p>")
+	if got.Files["index.html"].Content != "<p>new</p>" {
+		t.Errorf("stored = %q, want %q", got.Files["index.html"].Content, "<p>new</p>")
 	}
 }
 
@@ -159,7 +161,7 @@ func TestRender_ReturnsHTML(t *testing.T) {
 	seedProject(t, project.Project{
 		ID: "abc",
 		Files: map[string]project.File{
-			"html": {FileType: "html", Content: "<h1>hello</h1>"},
+			"index.html": {FileType: "html", Content: "<h1>hello</h1>"},
 		},
 	})
 
@@ -183,11 +185,11 @@ func TestFile_ServesCSSWithCorrectContentType(t *testing.T) {
 	seedProject(t, project.Project{
 		ID: "abc",
 		Files: map[string]project.File{
-			"css": {FileType: "css", Content: "body { color: red }"},
+			"styles.css": {FileType: "css", Content: "body { color: red }"},
 		},
 	})
 
-	res, err := http.Get(testServer.URL + "/api/project/abc/style.css")
+	res, err := http.Get(testServer.URL + "/api/project/abc/styles.css")
 	if err != nil {
 		t.Fatal(err)
 	}

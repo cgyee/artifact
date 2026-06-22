@@ -14,9 +14,9 @@ type Project = {
 }
 const api = "/api"
 const emptyProject: Project = {id:"", files: {
-        html:{type: "html", content: ""},
-        css:{type: "css", content: ""},
-        js:{type: "js", content: ""},
+        "index.html":{type: "html", content: ""},
+        "styles.css":{type: "css", content: ""},
+        "app.js":{type: "js", content: ""},
     }}
 function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -68,7 +68,8 @@ const Editor = ({selection}: {selection: string}) => {
     const [renderToken, setRenderToken] = useState(0);
 
     const currentType = selectionToType(selection)
-    const editor = editorFiles[currentType].content
+    const currentFile = selection
+    const editor = editorFiles[currentFile].content
 
     const updatePreviewMemo = useMemo(
         () => debounce((files: Files) => {
@@ -80,7 +81,7 @@ const Editor = ({selection}: {selection: string}) => {
     )
     const onChange = (content: string) => {
         const file: File = {type: currentType, content}
-        const next = {...editorFiles, [currentType]: file}
+        const next = {...editorFiles, [currentFile]: file}
         setEditorFiles(next)
         if (enabled) updatePreviewMemo(next)
     }
@@ -99,10 +100,7 @@ const Editor = ({selection}: {selection: string}) => {
             if (!projectId) return  // guard against empty initial value
             const project = await fetchProject(projectId)
             if (!project.files) return
-            const html = project.files.html ?? emptyProject.files.html
-            const css = project.files.css ?? emptyProject.files.css
-            const js = project.files.js ?? emptyProject.files.js
-            setEditorFiles({html, css, js})
+            setEditorFiles({...project.files})
         })()
     }, [projectId])
 

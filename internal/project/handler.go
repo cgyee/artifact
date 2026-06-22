@@ -8,7 +8,6 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -103,13 +102,12 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 	}
 	ext := filepath.Ext(fileName)
 	contentType := mime.TypeByExtension(ext)
-	file := strings.TrimPrefix(ext, ".")
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[file].Content)))
-	w.Write([]byte(project.Files[file].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[fileName].Content)))
+	w.Write([]byte(project.Files[fileName].Content))
 	return
 }
 
@@ -125,7 +123,7 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files["html"].Content)))
-	w.Write([]byte(project.Files["html"].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files["index.html"].Content)))
+	w.Write([]byte(project.Files["index.html"].Content))
 	return
 }
