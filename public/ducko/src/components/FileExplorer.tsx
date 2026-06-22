@@ -4,7 +4,7 @@ type Props = {
 }
 
 const FileExplorer = ({selection, setSelection}: Props ) => {
-    const files = ["index.html", "style.css", "app.js",]
+    const files = ["index.html", "styles.css", "app.js",]
     return (
         <div>
             <div>FileExplorer</div>

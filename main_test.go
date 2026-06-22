@@ -46,7 +46,6 @@ func TestMain(m *testing.M) {
 
 	// Build the same mux production uses. When you extract to a package,
 	// this becomes: projects.NewHandler(repo).Routes(mux).
-
 	mux := http.NewServeMux()
 
 	p := project.NewProjectHandler(project.NewMongoRepository("test"))
