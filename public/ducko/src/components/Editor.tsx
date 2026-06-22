@@ -1,23 +1,13 @@
-import {useParams} from 'react-router'
-import {useEffect, useMemo, useState} from "react";
+import {useMemo, useState} from "react";
+import type {File,} from "../pages/Edit.tsx";
 
-type File = {
-    type: string,
-    content: string
+type Props = {
+    src: string
+    name: string
+    file: File
+    onChange: (content: string) => void
 }
-type Files = {
-    [key: string]: File
-}
-type Project = {
-    id: string,
-    files: Files
-}
-const api = "/api"
-const emptyProject: Project = {id:"", files: {
-        "index.html":{type: "html", content: ""},
-        "styles.css":{type: "css", content: ""},
-        "app.js":{type: "js", content: ""},
-    }}
+
 function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     return (...args: A) => {
@@ -26,83 +16,27 @@ function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) 
     };
 }
 
-async function fetchProject(id: string) {
-    try {
-        const res = await fetch(`${api}/project/${id}`, {
-            method: "GET",
-        })
-        const project: Project | string = await res.json()
-        if (!res.ok) return {...emptyProject, id}
-        if (typeof project === "string") return {...emptyProject, id}
-        return project
-    } catch (e) {
-        console.error(e)
-        return {...emptyProject, id}
-    }
-
-}
-
-async function saveProject(id: string, files: Files) {
-    try {
-        await fetch(`${api}/project/${id}`, {
-            method: "POST",
-            body: JSON.stringify({files: files}),
-        })
-    } catch (e) {
-        console.error(e)
-    }
-}
-
-const selectionToType = (s: string): "html" | "css" | "js" => {
-    const suffix = s.split(".").pop()
-    if (suffix === "html") return "html"
-    if (suffix === "css") return "css"
-    if (suffix === "js") return "js"
-    return "html"
-}
-
-const Editor = ({selection}: {selection: string}) => {
-    const projectId = useParams()?.projectId ?? ""
+const Editor = ({name, src, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
-    const [editorFiles, setEditorFiles] = useState<Files>(emptyProject.files)
     const [renderToken, setRenderToken] = useState(0);
 
-    const currentType = selectionToType(selection)
-    const currentFile = selection
-    const editor = editorFiles[currentFile].content
-
     const updatePreviewMemo = useMemo(
-        () => debounce((files: Files) => {
+        () => debounce(() => {
             // don't really care about the result, just want to update the preview
-            saveProject(projectId, files)
             setRenderToken(prev => prev + 1)
+            console.log("render token: ", renderToken)
         }, 300),
-        [projectId]
+        [file]
     )
-    const onChange = (content: string) => {
-        const file: File = {type: currentType, content}
-        const next = {...editorFiles, [currentFile]: file}
-        setEditorFiles(next)
-        if (enabled) updatePreviewMemo(next)
-    }
 
     const handleRefreshClick = () => {
-        updatePreviewMemo(editorFiles)
+        updatePreviewMemo()
     }
     const handleAutoRefreshClick = () => {
         const next = !enabled
         setEnabled(!next)
-        if (!next) updatePreviewMemo(editorFiles)
+        if (!next) updatePreviewMemo()
     }
-
-    useEffect(() => {
-        (async () => {
-            if (!projectId) return  // guard against empty initial value
-            const project = await fetchProject(projectId)
-            if (!project.files) return
-            setEditorFiles({...project.files})
-        })()
-    }, [projectId])
 
     return (
         <>
@@ -110,12 +44,12 @@ const Editor = ({selection}: {selection: string}) => {
                 handleRefreshClick()
             }}>Play</button>
             <button onClick={handleAutoRefreshClick}>Auto Refresh: {enabled ? 'On' : 'Off'}</button>
-            <div>{selection}</div>
-            <textarea id={"editor"} value={editor} onChange={(e) => onChange(e.target.value)}></textarea>
+            <div>{name}</div>
+            <textarea id={"editor"} value={file.content} onChange={(e) => onChange(e.target.value)}></textarea>
             <iframe
                 title={"preview"}
                 id={"preview"}
-                src={`${api}/project/${projectId}/render?v=${renderToken}`}
+                src={`${src}/render?v=${renderToken}`}
                 key={renderToken}
             ></iframe>
         </>
