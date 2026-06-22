@@ -6,20 +6,18 @@ type File = {
     content: string
 }
 type Files = {
-    html: File,
-    css: File
+    [key: string]: File
 }
 type Project = {
     id: string,
     files: Files
 }
 const api = "/api"
-
-// Stable shell loaded once into the iframe. It listens for postMessage and
-// swaps body content without reloading the document — avoiding the srcdoc flash.
-// Caveat: <script> tags injected via innerHTML do not execute.
-// const PREVIEW_SHELL = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;height:100%}</style></head><body id="root"></body><script>window.addEventListener('message',(e)=>{document.getElementById('root').innerHTML=e.data;});</script></html>`
-
+const emptyProject: Project = {id:"", files: {
+        html:{type: "html", content: ""},
+        css:{type: "css", content: ""},
+        js:{type: "js", content: ""},
+    }}
 function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     return (...args: A) => {
@@ -29,23 +27,19 @@ function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) 
 }
 
 async function fetchProject(id: string) {
-    const emptyProject: Project = {id, files: {
-            html:{type: "html", content: ""},
-            css:{type: "css", content: ""},
-    }}
     try {
         const res = await fetch(`${api}/project/${id}`, {
             method: "GET",
         })
-        console.info("res: ", res)
-        const project: Project = await res.json()
-        console.info("project: ", project)
-        if (!res.ok) return emptyProject
+        const project: Project | string = await res.json()
+        if (!res.ok) return {...emptyProject, id}
+        if (typeof project === "string") return {...emptyProject, id}
         return project
     } catch (e) {
         console.error(e)
-        return emptyProject
+        return {...emptyProject, id}
     }
+
 }
 
 async function saveProject(id: string, files: Files) {
@@ -59,13 +53,18 @@ async function saveProject(id: string, files: Files) {
     }
 }
 
-const selectionToType = (s: string): "html" | "css" =>
-    s === "style.css" ? "css" : "html"
+const selectionToType = (s: string): "html" | "css" | "js" => {
+    const suffix = s.split(".").pop()
+    if (suffix === "html") return "html"
+    if (suffix === "css") return "css"
+    if (suffix === "js") return "js"
+    return "html"
+}
 
 const Editor = ({selection}: {selection: string}) => {
     const projectId = useParams()?.projectId ?? ""
     const [enabled, setEnabled] = useState<boolean>(false)
-    const [editorFiles, setEditorFiles] = useState<Files>({html: {type: "html", content: ""}, css: {type: "css", content: ""}})
+    const [editorFiles, setEditorFiles] = useState<Files>(emptyProject.files)
     const [renderToken, setRenderToken] = useState(0);
 
     const currentType = selectionToType(selection)
@@ -73,22 +72,26 @@ const Editor = ({selection}: {selection: string}) => {
 
     const updatePreviewMemo = useMemo(
         () => debounce((files: Files) => {
+            // don't really care about the result, just want to update the preview
             saveProject(projectId, files)
-            // updatePreviewDom(files[currentType].content)
+            setRenderToken(prev => prev + 1)
         }, 300),
         [projectId]
     )
     const onChange = (content: string) => {
         const file: File = {type: currentType, content}
-        setEditorFiles(prev => ({...prev, [currentType]: file}))
-        enabled && updatePreviewMemo(editorFiles)
+        const next = {...editorFiles, [currentType]: file}
+        setEditorFiles(next)
+        if (enabled) updatePreviewMemo(next)
     }
 
     const handleRefreshClick = () => {
         updatePreviewMemo(editorFiles)
     }
     const handleAutoRefreshClick = () => {
-        setEnabled(!enabled)
+        const next = !enabled
+        setEnabled(!next)
+        if (!next) updatePreviewMemo(editorFiles)
     }
 
     useEffect(() => {
@@ -96,17 +99,16 @@ const Editor = ({selection}: {selection: string}) => {
             if (!projectId) return  // guard against empty initial value
             const project = await fetchProject(projectId)
             if (!project.files) return
-            const html = project.files.html ?? {type: "html", content: ""}
-            const css = project.files.css ?? {type: "css", content: ""}
-            setEditorFiles({html, css})
-            // updatePreviewDom(html.content)
+            const html = project.files.html ?? emptyProject.files.html
+            const css = project.files.css ?? emptyProject.files.css
+            const js = project.files.js ?? emptyProject.files.js
+            setEditorFiles({html, css, js})
         })()
     }, [projectId])
 
     return (
         <>
             <button onClick={(_) => {
-                setRenderToken(prev => prev + 1)
                 handleRefreshClick()
             }}>Play</button>
             <button onClick={handleAutoRefreshClick}>Auto Refresh: {enabled ? 'On' : 'Off'}</button>
@@ -117,7 +119,6 @@ const Editor = ({selection}: {selection: string}) => {
                 id={"preview"}
                 src={`${api}/project/${projectId}/render?v=${renderToken}`}
                 key={renderToken}
-                // onLoad={() => updatePreviewDom(editorFiles.html.content)}
             ></iframe>
         </>
     )

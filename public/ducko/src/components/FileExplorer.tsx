@@ -1,24 +1,16 @@
-import {useEffect, useState} from "react";
-import * as React from "react";
+type Props = {
+    selection: string,
+    setSelection: (file: string) => void
+}
 
-const FileExplorer = ({setSelection}: { setSelection: React.Dispatch<React.SetStateAction<string>> } ) => {
-    const htmlfile = "index.html"
-    const cssfile = "style.css"
-    const [option, setOption] = useState<string>(htmlfile)
-
-    const handleFileChange = (selection: string) => {
-        if (selection === option) return
-        setOption(selection)
-        console.log(selection)
-    }
-    useEffect(() => {
-        setSelection(option)
-    }, [option])
+const FileExplorer = ({selection, setSelection}: Props ) => {
+    const files = ["index.html", "style.css", "app.js",]
     return (
         <div>
             <div>FileExplorer</div>
-            <button onClick={() => handleFileChange(htmlfile)}>{htmlfile}</button>
-            <button onClick={() => handleFileChange(cssfile)}>{cssfile}</button>
+            { files.map((file) => (
+                <button key={file} disabled={file === selection} onClick={() => setSelection(file)}>{file}</button>
+            ))}
         </div>
     )
 }

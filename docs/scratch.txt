@@ -53,9 +53,16 @@ Elephant Carpaccio Attempt #4
 5. Render endpoint's HTML includes <link href="style.css">. Browser fetches CSS via the slice-4 endpoint. Preview shows styled output.
 
 Learnings:
+index.html became 'html' and style.css became 'css' in the requests, responses, and database.
 Can't use srcDoc as relative paths don't work, which won't allows us to apply the css file similar what we would do in a real world scenario.
 Grouping state into a single object seems to be good idea in this case as we don't need to worry about juggling state between the html and css edits for the editor panel.
 We can use the same endpoint for both html and css files, also website hrefs are relative to the url path you are currently on.
 Backend will need to be refactored soonish since it's not very clean. A lot of repittion and coupling. Will introduce a lot of bugs. Will add tests => refactor => start TDD going forward.
 I have broken the render page. Since react router uses client side routing, so I need to figure out how to have the webpage render the html and css files without using an iframe.
 - The solution was to reuse the /project/:id endpoint and to use dangerouslySetInnerHTML to render the html and css files. The css files are applied via a style tag in the html since dangerouslySetInnerHTML doesn't fetch the css files.
+
+Walking Skeleton #3:
+JS executes in the preview on load
+1. Need to refactor the frontend Project type to include a js property
+2. Add a javascript selection to the 'file explorer', Skeleton #2 Slices 1 - file selection panel and 3 - file explorer switching, should take care of the editor panel just need to add the js file selection
+3. I write <script src="app.js"></script> in index.html, alert('hello') in app.js, click Play, see the alert
