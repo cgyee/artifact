@@ -7,7 +7,7 @@ import useProject from "../hooks/useProject";
 export const Edit = () => {
 
     const projectId = useParams()?.projectId ?? ""
-    const {project, selection, selectFile, updateContent} = useProject(projectId)
+    const { project, selection, selectFile, updateContent, renameFile, deleteFile } = useProject(projectId)
 
     return (
         <>
@@ -15,6 +15,8 @@ export const Edit = () => {
                 project={project}
                 selection={selection}
                 setSelection={selectFile}
+                renameFile={renameFile}
+                deleteFile={deleteFile}
             />
             <Editor
                 file={project.files[selection]}
