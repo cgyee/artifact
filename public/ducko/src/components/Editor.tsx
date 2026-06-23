@@ -1,5 +1,7 @@
 import {useEffect, useMemo, useState} from "react";
 import type {File} from "../types";
+import { debounce } from "../util/debounce";
+
 type Props = {
     src: string
     name: string
@@ -7,45 +9,26 @@ type Props = {
     onChange: (content: string) => void
 }
 
-function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    return (...args: A) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), timeout);
-    };
-}
-
 const Editor = ({name, src, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
     const [renderToken, setRenderToken] = useState(0);
 
-    const updatePreviewMemo = useMemo(
-        () => debounce(() => {
-            // don't really care about the result, just want to update the preview
-            setRenderToken(prev => prev + 1)
-        }, 300),
+    const refreshNow = () => setRenderToken(prev => prev + 1)
+
+    const debouncedRefresh = useMemo(
+        () => debounce(refreshNow, 300),
         []
     )
-    const handleRefreshClick = () => {
-        updatePreviewMemo()
-    }
-    const handleAutoRefreshClick = () => {
-        const next = !enabled
-        setEnabled(next)
-        if (!next) updatePreviewMemo()
-    }
+
+    const handleAutoRefreshClick = () => setEnabled(prev => !prev)
 
     useEffect(() => {
-        if (enabled) {
-            updatePreviewMemo()
-        }
+        if (enabled) debouncedRefresh()
     }, [file, enabled])
 
     return (
         <>
-            <button onClick={(_) => {
-                handleRefreshClick()
-            }}>Play</button>
+            <button onClick={refreshNow}>Play</button>
             <button onClick={handleAutoRefreshClick}>Auto Refresh: {enabled ? 'On' : 'Off'}</button>
             <div>{name}</div>
             <textarea id={"editor"} value={file.content} onChange={(e) => onChange(e.target.value)}></textarea>

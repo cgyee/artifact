@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Files, Project } from '../types'
+import { debounce } from '../util/debounce'
 
 const api = "/api"
 const emptyProject: Project = {
@@ -9,14 +10,6 @@ const emptyProject: Project = {
         "styles.css": { type: "css", content: "" },
         "app.js": { type: "js", content: "" },
     },
-}
-
-function debounce<A extends unknown[]>(fn: (...args: A) => void, timeout = 300) {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    return (...args: A) => {
-        clearTimeout(timer)
-        timer = setTimeout(() => fn(...args), timeout)
-    }
 }
 
 async function get(id: string) {

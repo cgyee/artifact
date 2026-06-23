@@ -174,3 +174,41 @@ describe('Edit — rename file', () => {
         expect(lastSave.files['renamed.html'].content).toBe('<p>custom</p>')
     })
 })
+
+// The iframe is remounted via key={renderToken} on every refresh, so we re-query
+// rather than caching a reference.
+const previewSrc = () => screen.getByTitle('preview').getAttribute('src')
+
+describe('Edit — preview', () => {
+    it('clicking Play immediately bumps the iframe renderToken', async () => {
+        const user = userEvent.setup()
+        renderEdit()
+        await screen.findByDisplayValue('<h1>Hello</h1>')
+
+        expect(previewSrc()).toMatch(/\?v=0$/)
+
+        await user.click(screen.getByRole('button', { name: 'Play' }))
+
+        // No wait needed — Play bypasses the debouncer.
+        expect(previewSrc()).toMatch(/\?v=1$/)
+    })
+
+    it('Auto Refresh on + burst of typing bumps the iframe renderToken exactly once', async () => {
+        const user = userEvent.setup()
+        renderEdit()
+        const editor = await screen.findByDisplayValue('<h1>Hello</h1>')
+
+        await user.click(screen.getByRole('button', { name: /Auto Refresh/i }))
+
+        await user.clear(editor)
+        await user.type(editor, 'abc')
+
+        // Wait past the 300ms debounce window for the single bump to land.
+        await waitFor(() => expect(previewSrc()).toMatch(/\?v=1$/), { timeout: 1000 })
+
+        // Then wait a beat more — regression check that we got ONE bump for
+        // the whole burst, not one per keystroke.
+        await new Promise((r) => setTimeout(r, 200))
+        expect(previewSrc()).toMatch(/\?v=1$/)
+    })
+})
