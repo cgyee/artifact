@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import type {File} from "../types";
 type Props = {
     src: string
@@ -23,19 +23,23 @@ const Editor = ({name, src, file, onChange}: Props) => {
         () => debounce(() => {
             // don't really care about the result, just want to update the preview
             setRenderToken(prev => prev + 1)
-            console.log("render token: ", renderToken)
         }, 300),
-        [file]
+        []
     )
-
     const handleRefreshClick = () => {
         updatePreviewMemo()
     }
     const handleAutoRefreshClick = () => {
         const next = !enabled
-        setEnabled(!next)
+        setEnabled(next)
         if (!next) updatePreviewMemo()
     }
+
+    useEffect(() => {
+        if (enabled) {
+            updatePreviewMemo()
+        }
+    }, [file, enabled])
 
     return (
         <>
