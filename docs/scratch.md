@@ -115,4 +115,5 @@ Working notes for incremental development of the Glitch clone. Each *walking ske
 4. Delete — click the 'Delete' button → `window.confirm("Are you sure you want to delete this file?")` → file deleted from the project's files map. If a currently selected file was deleted, show an empty editor. Probably prevent deleting 'core' files like `index.html`, `style.css`, `app.js`.
 
 #### Learnings ####
-Neede refactoring Editor and File Explorer components to use shared state since they are now coupled. The File Explorer can create, rename, and delete files and the Editor needs to be able to reflect those changes. Espcially since they're hitting the same endpoints.
+Need refactoring Editor and File Explorer components to use shared state since they are now coupled. The File Explorer can create, rename, and delete files and the Editor needs to be able to reflect those changes. Espcially since they're hitting the same endpoints.
+useEffects run after the paint cycle
