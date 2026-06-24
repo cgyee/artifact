@@ -11,3 +11,6 @@ export type Project = {
     id: string
     files: Files
 }
+export type TreeNode =
+    | { type: "dir"; children: Record<string, TreeNode> }
+    | { type: "file"; path: string };

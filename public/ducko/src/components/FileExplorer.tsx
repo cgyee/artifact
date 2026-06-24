@@ -1,4 +1,5 @@
-import type {Project} from "../types";
+import type {Files, Project, TreeNode} from "../types";
+import TreeView from "./TreeView.tsx";
 
 type Props = {
     selection: string,
@@ -10,6 +11,26 @@ type Props = {
 const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js)$/
 
 
+const buildDirTree = (files: Files) => {
+    const root: TreeNode = {type: "dir", children: {}}
+    for (const path of Object.keys(files)) {
+        const seg = path.split("/")
+        let node = root
+        for (let i = 0; i < seg.length - 1; i++) {
+              // If the current directory doesn't exist, create it.'
+            // @ts-ignore
+            if (!node.children[seg[i]]) node.children[seg[i]] = {type: "dir", children: {}}
+            // Move to the next directory.
+            // @ts-ignore
+            node = node.children[seg[i]]
+
+        }
+        // Now we're at the file. The last index of the seg length is the file name.
+        // @ts-ignore
+        node.children[seg[seg.length - 1]] = {type: "file", path}
+    }
+    return root
+}
 
 const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile }: Props ) => {
 
@@ -60,9 +81,7 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile 
             <button onClick={handleAddOnClick}>+</button>
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
-            { Object.keys(project.files).map((file) => (
-                <button key={file} disabled={file === selection} onClick={() => setSelection(file)}>{file}</button>
-            ))}
+            <TreeView node={buildDirTree(project.files)} onSelect={setSelection} depth={0} name={"/"} />
         </div>
     )
 }
