@@ -7,8 +7,10 @@ type Props = {
     project: Project
     renameFile: (oldName: string, newname: string) => void
     deleteFile: (name: string) => void
+    createFile: (name: string) => void
 }
 const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js)$/
+const DIRECTORY_REGEX = /^[a-zA-Z0-9-_]+$/
 
 
 const buildDirTree = (files: Files) => {
@@ -32,7 +34,7 @@ const buildDirTree = (files: Files) => {
     return root
 }
 
-const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile }: Props ) => {
+const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile, createFile }: Props ) => {
 
     const fileNameValid = (fileName: string) => {
         if (fileName in project.files) {
@@ -50,7 +52,22 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile 
         const fileName = window.prompt("Enter file name")
         if (!fileName) return
         if (!fileNameValid(fileName)) return
-        setSelection(fileName)
+        createFile(fileName)
+    }
+
+    const handleAddDirOnClick = () => {
+        const dirName = window.prompt("Enter directory name")
+        if (!dirName) return
+        if (dirName in project.files) {
+            window.alert("Directory already exists")
+            return
+        }
+        if (!DIRECTORY_REGEX.test(dirName)) {
+            window.alert("Invalid directory name")
+            return
+        }
+        createFile(`${dirName}/.keep`)
+        setSelection(dirName)
     }
 
     const handleRenameOnClick = () => {
@@ -81,7 +98,8 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile 
             <button onClick={handleAddOnClick}>+</button>
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
-            <TreeView node={buildDirTree(project.files)} onSelect={setSelection} depth={0} name={"/"} />
+            <button onClick={handleAddDirOnClick}>+Folder</button>
+            <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={setSelection} depth={0} name={""} path={""} />
         </div>
     )
 }

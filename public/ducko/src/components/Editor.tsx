@@ -11,6 +11,7 @@ type Props = {
 
 const Editor = ({name, src, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
+    const disabled = name.includes(".keep")
     const [renderToken, setRenderToken] = useState(0);
 
     const refreshNow = () => setRenderToken(prev => prev + 1)
@@ -30,8 +31,8 @@ const Editor = ({name, src, file, onChange}: Props) => {
         <>
             <button onClick={refreshNow}>Play</button>
             <button onClick={handleAutoRefreshClick}>Auto Refresh: {enabled ? 'On' : 'Off'}</button>
-            <div>{name}</div>
-            <textarea id={"editor"} value={file.content} onChange={(e) => onChange(e.target.value)}></textarea>
+            <div>{disabled ? "" : name}</div>
+            <textarea disabled={disabled} id={"editor"} value={file.content} onChange={(e) => onChange(e.target.value)}></textarea>
             <iframe
                 title={"preview"}
                 id={"preview"}

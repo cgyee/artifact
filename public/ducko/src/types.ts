@@ -1,5 +1,4 @@
 export type File = {
-    type: string
     content: string
 }
 

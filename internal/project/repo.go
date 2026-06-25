@@ -13,7 +13,7 @@ import (
 )
 
 type Project struct {
-	ID    string          `bson:"id" json:"projectID"`
+	ID    string          `bson:"id" json:"id"`
 	Files map[string]File `bson:"files" json:"files"`
 }
 type File struct {
@@ -57,7 +57,7 @@ func (r *MongoRepository) Get(ctx context.Context, id string) (Project, error) {
 }
 
 func (r *MongoRepository) Save(ctx context.Context, project Project) error {
-	models := []mongo.WriteModel{mongo.NewUpdateOneModel().SetUpsert(true).SetUpdate(bson.M{"$set": project}).SetFilter(bson.M{"id": project.ID})}
+	models := []mongo.WriteModel{mongo.NewUpdateOneModel().SetUpsert(true).SetUpdate(bson.M{"$set": bson.M{"files": project.Files}, "$setOnInsert": bson.M{"id": project.ID}}).SetFilter(bson.M{"id": project.ID})}
 	_, err := r.coll.BulkWrite(ctx, models)
 	if err != nil {
 		return err

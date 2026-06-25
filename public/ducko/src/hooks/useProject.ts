@@ -6,9 +6,9 @@ const api = "/api"
 const emptyProject: Project = {
     id: "",
     files: {
-        "index.html": { type: "html", content: "" },
-        "styles.css": { type: "css", content: "" },
-        "app.js": { type: "js", content: "" },
+        "index.html": { content: "" },
+        "styles.css": { content: "" },
+        "app.js": { content: "" },
     },
 }
 
@@ -41,13 +41,20 @@ export default function useProject(id: string) {
     const [project, setProject] = useState<Project>(emptyProject)
 
     const selectFile = (name: string) => {
-        setProject(prev => {
-            if (prev.files[name]) return prev
-            const next = { ...prev, files: { ...prev.files, [name]: { type: "html", content: "" } } }
-            debouncedSave(next)
-            return next
-        })
         setSelection(name)
+    }
+
+    const createFile = (name: string) => {
+        const next: Project = {
+            ...project,
+            files: { ...project.files, [name]: { content: "" } },
+        }
+        setProject(next)
+        set(project.id, next.files)
+    }
+
+    const createFolder = (name: string) => {
+        createFile(`${name}/.keep`)
     }
 
     const updateContent = (name: string, content: string) => {
@@ -58,6 +65,18 @@ export default function useProject(id: string) {
         setProject(next)
         debouncedSave(next)
     }
+    const renameFolder = (oldName: string, newName: string) => {
+        const next: Project = {id: project.id, files: {}}
+        for(const file in project.files) {
+            let fileName = file
+            if (file.includes(oldName)) {
+                    fileName = file.replace(oldName, newName)
+            }
+            next.files[fileName] = project.files[file]
+        }
+        set(project.id, next.files)
+        setProject(next)
+    }
 
     const renameFile = (oldName: string, newName: string) => {
         const next: Project = {
@@ -65,8 +84,19 @@ export default function useProject(id: string) {
             files: { ...project.files, [newName]: project.files[oldName] },
         }
         delete next.files[oldName]
-        setProject(next)
         set(project.id, next.files)
+        setProject(next)
+    }
+
+    const deleteFolder = (name: string) => {
+        const next : Project = {id: project.id, files: {}}
+        for(const file in project.files) {
+            if (!file.includes(name)) {
+                next.files[file] = project.files[file]
+            }
+        }
+        set(project.id, next.files)
+        setProject(next)
     }
 
     const deleteFile = (name: string) => {
@@ -75,14 +105,16 @@ export default function useProject(id: string) {
             files: { ...project.files },
         }
         delete next.files[name]
-        setProject(next)
+        setProject(prev => ({
+            ...prev,
+            files: next.files,
+        }))
         set(project.id, next.files)
     }
 
     const debouncedSave = useMemo(
         () => debounce((p: Project) => {
             set(id, p.files)
-            console.log("saved")
         }, 300),
         [id]
     )
@@ -94,5 +126,5 @@ export default function useProject(id: string) {
         })()
     }, [id])
 
-    return { project, selection, selectFile, updateContent, renameFile, deleteFile }
+    return { project, selection, selectFile, updateContent, renameFile, deleteFile, createFile, createFolder, renameFolder, deleteFolder }
 }
