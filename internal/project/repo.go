@@ -17,8 +17,7 @@ type Project struct {
 	Files map[string]File `bson:"files" json:"files"`
 }
 type File struct {
-	FileType string `bson:"fileType" json:"type"`
-	Content  string `bson:"content" json:"content"`
+	Content string `bson:"content" json:"content"`
 }
 
 var ErrNotFound = errors.New("project not found")

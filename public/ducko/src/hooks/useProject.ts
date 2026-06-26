@@ -53,10 +53,6 @@ export default function useProject(id: string) {
         set(project.id, next.files)
     }
 
-    const createFolder = (name: string) => {
-        createFile(`${name}/.keep`)
-    }
-
     const updateContent = (name: string, content: string) => {
         const next: Project = {
             ...project,
@@ -129,5 +125,5 @@ export default function useProject(id: string) {
         })()
     }, [id])
 
-    return { project, selection, selectFile, updateContent, renameFile, deleteFile, createFile, createFolder, renameFolder, deleteFolder }
+    return { project, selection, selectFile, updateContent, renameFile, deleteFile, createFile, renameFolder, deleteFolder }
 }
