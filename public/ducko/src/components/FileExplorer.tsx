@@ -53,8 +53,8 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
     const generatePath = (path:string) => {
         if (path === "") return ""
         // I need the value of the directory before the last "."
-        const lastDirIdx = selection.lastIndexOf("/")
-        return lastDirIdx === -1 ? "" : selection.slice(0, lastDirIdx + 1)
+        const lastDirIdx = path.lastIndexOf("/")
+        return lastDirIdx === -1 ? "" : path.slice(0, lastDirIdx + 1)
     }
 
     const handleAddOnClick = () => {

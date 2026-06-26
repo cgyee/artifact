@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '../test/setup'
 import { Edit } from './Edit'
 
-type SaveBody = { files: Record<string, { type: string; content: string }> }
+type SaveBody = { files: Record<string, { content: string }> }
 
 function renderEdit(projectId = 'test123') {
     return render(
@@ -65,10 +65,10 @@ describe('Edit', () => {
 const projectWithCustomFile = (id: string) => ({
     id,
     files: {
-        'index.html': { type: 'html', content: '<h1>Hello</h1>' },
-        'styles.css': { type: 'css', content: 'body{}' },
-        'app.js': { type: 'js', content: 'console.log("hi")' },
-        'custom.html': { type: 'html', content: '<p>custom</p>' },
+        'index.html': { content: '<h1>Hello</h1>' },
+        'styles.css': {  content: 'body{}' },
+        'app.js': { content: 'console.log("hi")' },
+        'custom.html': { content: '<p>custom</p>' },
     },
 })
 
@@ -210,5 +210,172 @@ describe('Edit — preview', () => {
         // the whole burst, not one per keystroke.
         await new Promise((r) => setTimeout(r, 200))
         expect(previewSrc()).toMatch(/\?v=1$/)
+    })
+})
+
+const projectWithCustomFolders = (id: string) => ({
+    id,
+    files: {
+        'index.html': { content: '<h1>Hello</h1>' },
+        'styles.css': {  content: 'body{}' },
+        'app.js': { content: 'console.log("hi")' },
+        'public/.keep': { content: '' },
+        'public/styles.css': { content: 'body{}' },
+        'public/app.js': { content: 'console.log("hi")' },
+        'public/custom.html': { content: '<p>custom</p>' },
+        'public/subfolder/index.html': { content: '<h1>Hello</h1>' },
+        'public/subfolder/styles.css': { content: 'body{}' },
+        'public/subfolder/app.js': { content: 'console.log("hi")' },
+        'public/subfolder/my.html': { content: '<p>custom</p>' },
+    }
+})
+
+describe('Edit - add folder', () => {
+    it('adds a folder to the explorer persists the new folder to the server', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            }),
+        )
+
+        vi.stubGlobal('Enter folder name', vi.fn().mockReturnValue("public"))
+
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: '+Folder' }))
+
+
+        expect(await screen.findByRole("button", {name: "public"})).toBeInTheDocument()
+    })
+
+    it('persists the new folder to the server', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            }),
+        )
+
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue("public"))
+
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: '+Folder' }))
+
+        await waitFor(() => expect(saveBodies.length).toBeGreaterThanOrEqual(1), { timeout: 1000 })
+        const lastSave = saveBodies[saveBodies.length - 1]
+        expect(lastSave.files).toHaveProperty('public/.keep')
+
+    })
+})
+
+describe('Edit - rename folder', () => {
+    it('replaces the folder name in the explorer and preserves the content', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            })
+        )
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue("private"))
+
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: 'public' }))
+        await user.click(await screen.findByRole('button', { name: 'Rename' }))
+
+        expect(screen.queryByRole('button', {name: "public"})).not.toBeInTheDocument()
+    })
+
+    it('persists the rename to the server with the original content under the new name', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            })
+        )
+
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue("private"))
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: 'public' }))
+        await user.click(await screen.findByRole('button', { name: 'Rename' }))
+
+        const lastSave = saveBodies[saveBodies.length - 1]
+        for(const file in lastSave.files) {
+            expect(file.startsWith("public")).toBeFalsy()
+        }
+    })
+})
+
+describe('Edit - delete folder', () => {
+    it('removes the folder from the explorer and removes its contents from the editor', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            })
+        )
+        vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: 'public' }))
+        await user.click(await screen.findByRole('button', { name: '---' }))
+
+        expect(screen.queryByRole('button', {name: 'public'})).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'custom.html'})).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'my.html'})).not.toBeInTheDocument()
+    })
+
+    it('persists the deletion to the server', async () => {
+        const saveBodies: SaveBody[] = []
+        server.use(
+            http.get('/api/project/:id', ({ params }) =>
+                HttpResponse.json(projectWithCustomFolders(params.id as string)),
+            ),
+            http.post('/api/project/:id', async ({ request }) => {
+                saveBodies.push((await request.json()) as SaveBody)
+                return HttpResponse.json({ ok: true })
+            })
+        )
+        vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+
+        const user = userEvent.setup()
+        renderEdit()
+
+        await user.click(await screen.findByRole('button', { name: 'public' }))
+        await user.click(await screen.findByRole('button', { name: '---' }))
+
+        const lastSave = saveBodies[saveBodies.length - 1]
+        for(const file in lastSave.files) {
+            expect(file.startsWith("public")).toBeFalsy()
+        }
     })
 })

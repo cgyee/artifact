@@ -87,7 +87,7 @@ Working notes for incremental development of the Glitch clone. Each *walking ske
 
 ---
 
-## Skeleton #4: File CRUD *(planned)*
+## Skeleton #4: File CRUD
 
 > A user can create a new file with a name they choose, rename an existing file, and delete a file — via the file explorer.
 
@@ -117,3 +117,24 @@ Working notes for incremental development of the Glitch clone. Each *walking ske
 #### Learnings ####
 Need refactoring Editor and File Explorer components to use shared state since they are now coupled. The File Explorer can create, rename, and delete files and the Editor needs to be able to reflect those changes. Espcially since they're hitting the same endpoints.
 useEffects run after the paint cycle
+
+
+## Skeleton #5: File Explorer CRUD (*In Progress*)
+A user can create folders, create files inside folders, rename folders, and delete folders — with create operations targeting the currently focused folder, and rename/delete operations propagating to all files under the folder.
+
+### Carpaccio Attempt #1
+1. Create Folder button -> click it to be prompted for a folder name -> Creates an empty folder in the "root" Saved to database as type ='.keep'.
+2. Clicking a folder 'selects' it as focused. Create file and create folder buttons -> create a file in the focused folder.
+3. Extend rename functionality to folders. Files under the folder are renamed as well(storage side)
+4. Extend delete functionality to folders. If a folder is selected to to be deleted user should be prompted to confirm. Files under the folder are deleted as well(storage side)
+
+### Carpaccio Attempt #2 ###
+0. File explorer groups files by path prefix; folders appear as distinct visual entries; .keep files are hidden.
+1. Create Folder button → prompts for name → empty folder created in root (via .keep placeholder). Folder appears in the explorer.
+2. Clicking a folder focuses it (visible highlight). Create File and Create Folder buttons now create inside the focused folder (or the parent of the selected file if no folder
+   focused).
+3. Rename button extends to folders. Renaming a folder batch-updates all files with that prefix. If the currently-edited file was under the renamed folder, selection follows.
+4. Delete button extends to folders. Delete prompts for confirmation. Files under the folder are batch-deleted. If the focused folder was deleted, focus resets; if the selected  file's folder was deleted, selection falls back to the first remaining file.
+
+### Learnings ###
+- Need to sort the children of a folder by type otherwise order can be confusing.
