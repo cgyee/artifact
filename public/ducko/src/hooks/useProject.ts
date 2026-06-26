@@ -67,11 +67,13 @@ export default function useProject(id: string) {
     }
     const renameFolder = (oldName: string, newName: string) => {
         const next: Project = {id: project.id, files: {}}
+        const prefix = oldName.endsWith("/") ? oldName : `${oldName}/`
+        const newPrefix = newName.endsWith("/") ? newName : `${newName}/`
         for(const file in project.files) {
-            const path = file.slice(0, oldName.length)
+            const path = file.slice(0, prefix.length)
             let fileName = file
             if (path === oldName) {
-                fileName = file.replace(oldName, newName)
+                fileName = file.replace(path, newPrefix)
             }
             next.files[fileName] = project.files[file]
         }
@@ -92,9 +94,8 @@ export default function useProject(id: string) {
     const deleteFolder = (name: string) => {
         const next : Project = {id: project.id, files: {}}
         for(const file in project.files) {
-            if (!file.includes(name)) {
-                next.files[file] = project.files[file]
-            }
+            const path = file.slice(0, name.length)
+            if (path !== name) next.files[file] = project.files[file]
         }
         set(project.id, next.files)
         setProject(next)
@@ -111,6 +112,7 @@ export default function useProject(id: string) {
             files: next.files,
         }))
         set(project.id, next.files)
+        setSelection("index.html")
     }
 
     const debouncedSave = useMemo(

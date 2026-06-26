@@ -3,7 +3,7 @@ import TreeView from "./TreeView.tsx";
 
 type Props = {
     selection: string,
-    setSelection: (file: string) => void
+    onSelection: (file: string) => void
     project: Project
     renameFile: (oldName: string, newname: string) => void
     deleteFile: (name: string) => void
@@ -37,7 +37,7 @@ const buildDirTree = (files: Files) => {
 }
 
 
-const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile, createFile, renameFolder, deleteFolder }: Props ) => {
+const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, createFile, renameFolder, deleteFolder }: Props ) => {
     const fileNameValid = (fileName: string, fullPath: string) => {
         if (`${fullPath}${fileName}` in project.files) {
             window.alert("File already exists")
@@ -79,7 +79,7 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile,
             return
         }
         createFile(`${path}${dirName}/.keep`)
-        setSelection(`${path}${dirName}/.keep`)
+        onSelection(`${path}${dirName}/.keep`)
     }
 
     const handleRenameOnClick = () => {
@@ -101,14 +101,14 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile,
                 return
             }
             renameFolder(path, newPath)
-            setSelection(`${newPath}.keep`)
+            onSelection(`${newPath}.keep`)
             return
         }
         const path = generatePath(selection)
         const fullPath = `${path}${newName}`
         if (!fileNameValid(newName, path)) return
         renameFile(selection, fullPath)
-        setSelection(fullPath)
+        onSelection(fullPath)
     }
 
     const handleDeleteOnClick = () => {
@@ -119,12 +119,12 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile,
             return
         }
         if (selection.includes(".keep")) {
-            deleteFolder(selection)
-            setSelection("index.html")
+            const path = generatePath(selection)
+            deleteFolder(path)
+            onSelection("index.html")
             return
         }
         deleteFile(selection)
-        setSelection("index.html")
     }
     return (
         <div>
@@ -133,7 +133,7 @@ const FileExplorer = ({project, selection, setSelection, renameFile, deleteFile,
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
             <button onClick={handleAddDirOnClick}>+Folder</button>
-            <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={setSelection} depth={0} name={""} path={""} />
+            <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={onSelection} depth={0} name={""} path={""} />
         </div>
     )
 }

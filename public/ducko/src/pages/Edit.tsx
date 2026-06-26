@@ -13,7 +13,7 @@ export const Edit = () => {
             <FileExplorer
                 project={project}
                 selection={selection}
-                setSelection={selectFile}
+                onSelection={selectFile}
                 renameFile={renameFile}
                 deleteFile={deleteFile}
                 createFile={createFile}
