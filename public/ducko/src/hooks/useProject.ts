@@ -68,9 +68,10 @@ export default function useProject(id: string) {
     const renameFolder = (oldName: string, newName: string) => {
         const next: Project = {id: project.id, files: {}}
         for(const file in project.files) {
+            const path = file.slice(0, oldName.length)
             let fileName = file
-            if (file.includes(oldName)) {
-                    fileName = file.replace(oldName, newName)
+            if (path === oldName) {
+                fileName = file.replace(oldName, newName)
             }
             next.files[fileName] = project.files[file]
         }

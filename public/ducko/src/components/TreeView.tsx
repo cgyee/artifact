@@ -13,16 +13,17 @@ const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
 
     if (node.type === "dir") {
         const children = Object.keys(node.children)
-        const isActive = selection === `${path}/.keep`
+        const dir = path + "/.keep"
+        const isActive = selection === dir
         return (
             <div  key={name} style={{paddingLeft: `${depth * 10}px`}}>
-                {name === "" ? "" : <button style={{backgroundColor: isActive ? "yellow" : ""}} key={name + "view"} onClick={() => onSelect(`${name}/.keep`)}>{name}</button> }
+                {name === "" ? "" : <button style={{backgroundColor: isActive ? "yellow" : ""}} key={name + "view"} onClick={() => onSelect(dir)}>{name}</button> }
                 {children.map((child) => (
-                    child.includes(".keep") ?<></> :
+                    child.includes(".keep") ? <></> :
                         <TreeView
                             key={child}
                             name={child}
-                            path={path === "" ? child : `${path}/${child}`}
+                            path={path === "" ? child: `${path}/${child}`}
                             node={node.children[child]}
                             depth={depth + 1}
                             onSelect={onSelect}
@@ -32,7 +33,7 @@ const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
             </div>)
 
     } else if (node.type === "file") {
-        return <button key={name} onClick={() => onSelect(name)}>{name}</button>
+        return <button key={name} onClick={() => onSelect(path)}>{name}</button>
     } else {
         return <></>
     }
