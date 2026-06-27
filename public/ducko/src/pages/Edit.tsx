@@ -7,13 +7,13 @@ import useProject from "../hooks/useProject";
 export const Edit = () => {
 
     const projectId = useParams()?.projectId ?? ""
-    const { project, selection, selectFile, updateContent, renameFile, deleteFile, createFile, deleteFolder, renameFolder } = useProject(projectId)
+    const { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, deleteFolder, renameFolder } = useProject(projectId)
     return (
         <>
             <FileExplorer
                 project={project}
                 selection={selection}
-                onSelection={selectFile}
+                onSelection={onSelect}
                 renameFile={renameFile}
                 deleteFile={deleteFile}
                 createFile={createFile}
@@ -21,9 +21,10 @@ export const Edit = () => {
                 renameFolder={renameFolder}
             />
             <Editor
-                file={project.files[selection]}
-                onChange={(content: string) => updateContent(selection, content)}
-                name={selection}
+                file={project.files[selection.path]}
+                onChange={(content: string) => updateContent(selection.path, content)}
+                name={selection.path}
+                kind={selection.kind}
                 src={`/api/project/${projectId}`}
             />
         </>

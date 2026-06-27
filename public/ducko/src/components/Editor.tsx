@@ -6,12 +6,13 @@ type Props = {
     src: string
     name: string
     file: File
+    kind: "file" | "dir"
     onChange: (content: string) => void
 }
 
-const Editor = ({name, src, file, onChange}: Props) => {
+const Editor = ({name, src, kind, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
-    const disabled = name.includes(".keep")
+    const disabled = kind === "dir"
     const [renderToken, setRenderToken] = useState(0);
 
     const refreshNow = () => setRenderToken(prev => prev + 1)

@@ -1,11 +1,12 @@
 import type {Files, Project, TreeNode} from "../types";
 import TreeView from "./TreeView.tsx";
+import type {Selection} from "../types";
 
 type Props = {
-    selection: string,
-    onSelection: (file: string) => void
+    selection: Selection,
+    onSelection: (file: Selection) => void
     project: Project
-    renameFile: (oldName: string, newname: string) => void
+    renameFile: (oldName: string, newName: string) => void
     deleteFile: (name: string) => void
     createFile: (name: string) => void
     deleteFolder: (name: string) => void
@@ -61,7 +62,7 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
         const fileName = window.prompt("Enter file name")
         // so the linter stops complaining that fullPath could be undefined
         if (!fileName || !selection) return
-        const fullPath = generatePath(selection)
+        const fullPath = generatePath(selection.path)
         if (!fileNameValid(fileName, fullPath)) return
         createFile(`${fullPath}${fileName}`)
     }
@@ -69,7 +70,7 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
     const handleAddDirOnClick = () => {
         const dirName = window.prompt("Enter directory name")
         if (!dirName) return
-        const path = generatePath(selection)
+        const path = generatePath(selection.path)
         if (path in project.files) {
             window.alert("Directory already exists")
             return
@@ -79,19 +80,19 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
             return
         }
         createFile(`${path}${dirName}/.keep`)
-        onSelection(`${path}${dirName}/.keep`)
+        onSelection({kind: "dir", path: `${path}${dirName}/.keep`})
     }
 
     const handleRenameOnClick = () => {
         const newName = window.prompt("Enter new file name")
         if (!newName) return
-        if (["index.html", "styles.css", "app.js"].includes(selection)) {
+        if (["index.html", "styles.css", "app.js"].includes(selection.path)) {
             window.alert("Cannot rename default files")
             return
         }
 
-        if (selection.includes(".keep")) {
-            const path = generatePath(selection)
+        if (selection.kind === "dir") {
+            const path = generatePath(selection.path)
             const dir = path.slice(0, -1)
             const idx = dir.lastIndexOf("/")
             const targetDir = idx === -1 ? "" : dir.slice(0, idx + 1)
@@ -101,30 +102,31 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
                 return
             }
             renameFolder(path, newPath)
-            onSelection(`${newPath}.keep`)
+            onSelection({kind: "dir", path: `${newPath}.keep`
+        })
             return
         }
-        const path = generatePath(selection)
+        const path = generatePath(selection.path)
         const fullPath = `${path}${newName}`
         if (!fileNameValid(newName, path)) return
-        renameFile(selection, fullPath)
-        onSelection(fullPath)
+        renameFile(selection.path, fullPath)
+        onSelection({kind: "file", path: fullPath})
     }
 
     const handleDeleteOnClick = () => {
         const conf = window.confirm("Are you sure you want to delete this file?")
         if (!conf) return
-        if (["index.html", "styles.css", "app.js"].includes(selection)) {
+        if (["index.html", "styles.css", "app.js"].includes(selection.path)) {
             window.alert("Cannot delete default files")
             return
         }
-        if (selection.includes(".keep")) {
-            const path = generatePath(selection)
+        if (selection.kind === "dir") {
+            const path = generatePath(selection.path)
             deleteFolder(path)
-            onSelection("index.html")
+            onSelection({kind: "file", path: "index.html"})
             return
         }
-        deleteFile(selection)
+        deleteFile(selection.path)
     }
     return (
         <div>

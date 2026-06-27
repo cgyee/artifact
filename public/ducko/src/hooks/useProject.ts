@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import type { Files, Project } from '../types'
+import type { Files, Selection, Project } from '../types'
 import { debounce } from '../util/debounce'
 
 const api = "/api"
@@ -37,11 +37,14 @@ async function set(id: string, files: Files) {
 }
 
 export default function useProject(id: string) {
-    const [selection, setSelection] = useState<string>("index.html")
+    const [selection, setSelection] = useState<Selection>({ kind: "file", path: "index.html" })
     const [project, setProject] = useState<Project>(emptyProject)
 
-    const selectFile = (name: string) => {
-        setSelection(name)
+    const onSelect = (s: Selection) => {
+        if (s.kind === "dir") {
+            s.path = s.path.endsWith("/") ? `${s.path}.keep` : s.path
+        }
+        setSelection(s)
     }
 
     const createFile = (name: string) => {
@@ -108,7 +111,7 @@ export default function useProject(id: string) {
             files: next.files,
         }))
         set(project.id, next.files)
-        setSelection("index.html")
+        setSelection({ kind: "file", path: "index.html" })
     }
 
     const debouncedSave = useMemo(
@@ -125,5 +128,5 @@ export default function useProject(id: string) {
         })()
     }, [id])
 
-    return { project, selection, selectFile, updateContent, renameFile, deleteFile, createFile, renameFolder, deleteFolder }
+    return { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, renameFolder, deleteFolder }
 }

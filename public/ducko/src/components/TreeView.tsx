@@ -1,23 +1,23 @@
-import type {TreeNode} from "../types.ts";
+import type {Selection, TreeNode} from "../types.ts";
 
 type Props = {
     name: string,
     path: string,
     node: TreeNode
     depth: number,
-    selection: string,
-    onSelect: (name: string) => void
+    selection: Selection,
+    onSelect: (selection: Selection) => void
 }
 
 const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
 
     if (node.type === "dir") {
         const children = Object.keys(node.children)
-        const dir = path + "/.keep"
-        const isActive = selection === dir
+        const dir = path + "/"
+        const isActive = selection.kind === "dir"
         return (
             <div  key={name} style={{paddingLeft: `${depth * 10}px`}}>
-                {name === "" ? "" : <button style={{backgroundColor: isActive ? "yellow" : ""}} key={name + "view"} onClick={() => onSelect(dir)}>{name}</button> }
+                {name === "" ? "" : <button style={{backgroundColor: isActive ? "yellow" : ""}} key={name + "view"} onClick={() => onSelect({ kind: "dir", path: dir })}>{name}</button> }
                 {children.map((child) => (
                     child.includes(".keep") ? <></> :
                         <TreeView
@@ -33,7 +33,7 @@ const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
             </div>)
 
     } else if (node.type === "file") {
-        return <button key={name} onClick={() => onSelect(path)}>{name}</button>
+        return <button key={name} onClick={() => onSelect({ kind: "file", path })}>{name}</button>
     } else {
         return <></>
     }
