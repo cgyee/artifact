@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -24,10 +25,11 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/project/new", h.create)
 	mux.HandleFunc("GET /api/project/{projectID}", h.get)
 	mux.HandleFunc("POST /api/project/{projectID}", h.save)
-	mux.HandleFunc("GET /api/project/{projectID}/{fileName}", h.file)
 	mux.HandleFunc("GET /api/project/{projectID}/render", h.render)
+	mux.HandleFunc("GET /api/project/{projectID}/{fileName}/", h.file)
 	mux.HandleFunc("GET /view/project/{projectID}", h.render)
-	mux.HandleFunc("GET /view/project/{projectID}/{fileName}", h.file)
+	mux.HandleFunc("GET /view/project/{projectID}/{fileName}/", h.file)
+	mux.HandleFunc("GET /view/project/{projectID}/", h.file)
 
 }
 
@@ -88,10 +90,12 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
-	fileName := r.PathValue("fileName")
 	projectID := r.PathValue("projectID")
-
+	path := strings.TrimPrefix(r.URL.Path, "/api/project/"+projectID+"/")
+	// Remove trailing slash if present
+	path = strings.TrimSuffix(path, "/")
 	project, err := h.repo.Get(r.Context(), projectID)
+
 	if errors.Is(err, ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -100,14 +104,14 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ext := filepath.Ext(fileName)
+	ext := filepath.Ext(path)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[fileName].Content)))
-	w.Write([]byte(project.Files[fileName].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[path].Content)))
+	w.Write([]byte(project.Files[path].Content))
 	return
 }
 
@@ -122,8 +126,46 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	file := script + project.Files["index.html"].Content
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files["index.html"].Content)))
-	w.Write([]byte(project.Files["index.html"].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(file)))
+	w.Write([]byte(file))
 	return
 }
+
+const script = `<script>
+    (() => {
+      const send = (level, args, extra) => {
+        try {
+          window.parent.postMessage({
+            source: "preview",
+            level,
+            args: args.map(a => JSON.stringify(a)),
+            timestamp: Date.now(),
+			...extra,
+          }, "*")
+        } catch (e) {
+          console.error(e)
+        }
+      }
+
+      const originalLog = console.log
+      const originalInfo = console.info
+      const originalWarn = console.warn
+      const originalError = console.error
+
+      console.log = (...args) => { send("log", args); originalLog.apply(console, args) }
+      console.info = (...args) => { send("info", args); originalInfo.apply(console, args) }
+      console.warn = (...args) => { send("warn", args); originalWarn.apply(console, args) }
+      console.error = (...args) => { send("error", args); originalError.apply(console, args) }
+
+      window.addEventListener("error", (e) => {
+        send("error", [e.message], { stack: e.error?.stack })
+      })
+
+      window.addEventListener("unhandledrejection", (e) => {
+        send("error", [e.reason], { stack: e.reason?.stack })
+      })
+    })()
+	
+  </script>`
