@@ -8,14 +8,18 @@ type Props = {
     file: File
     kind: "file" | "dir"
     onChange: (content: string) => void
+    resetLogs: () => void
 }
 
-const Editor = ({name, src, kind, file, onChange}: Props) => {
+const Editor = ({name, src, resetLogs, kind, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
     const disabled = kind === "dir"
     const [renderToken, setRenderToken] = useState(0);
 
-    const refreshNow = () => setRenderToken(prev => prev + 1)
+    const refreshNow = () => {
+        setRenderToken(prev => prev + 1);
+        resetLogs();
+    }
 
     const debouncedRefresh = useMemo(
         () => debounce(refreshNow, 300),

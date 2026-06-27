@@ -19,3 +19,11 @@ export type Selection = {
 export type TreeNode =
     | { type: "dir"; children: Record<string, TreeNode> }
     | { type: "file"; path: string };
+
+export type LogEntry = {
+    source: string
+    level: "error" | "warn" | "info" | "log"
+    args: string[]
+    timestamp: number
+    stack?: string
+}
