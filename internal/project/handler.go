@@ -135,12 +135,20 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 
 const script = `<script>
     (() => {
+	  const safeStringify = a => {
+		try {
+		  const result = JSON.stringify(a)
+		  return result === undefined ? String(a) : result  // "undefined", "function () {...}", etc.
+		} catch {
+		  return String(a)  // catches circular refs too
+		}
+	  }
       const send = (level, args, extra) => {
         try {
           window.parent.postMessage({
             source: "preview",
             level,
-            args: args.map(a => JSON.stringify(a)),
+            args: args.map(a => safeStringify(a)),
             timestamp: Date.now(),
 			...extra,
           }, "*")

@@ -6,13 +6,15 @@ type Props = {
     onLog: (logs: LogEntry) => void
 }
 
-const parseLog = (args: string[]) => args.map(l => JSON.parse(l)).join(" ")
+const parseLog = (args: string[]) => {
+    if (!args || args.length === 0) return "";
+    return args.map(l => JSON.parse(l)).map(i => typeof i === "object" && i !== null ? JSON.stringify(i) : String(i)).join(" ")
+}
 const LogExplorer = ({logs, onLog} :Props) => {
 
     useEffect(() => {
         const handler = (e: MessageEvent) => {
             if (e?.data?.source !== "preview") return
-            console.log(e.data)
             onLog(e.data)
         }
         window.addEventListener("message", handler)
@@ -29,8 +31,8 @@ const LogExplorer = ({logs, onLog} :Props) => {
                 if (log.level === "warn") return <div key={log.level + idx}>warn: {parseLog(log.args)}</div>
                 if (log.level === "error") {
                     return <div key={log.level + idx + "error"}>
-                        <div key={log.level + idx}>error: {parseLog(log.args)}</div>
-                        {log?.stack && <div key={log.level + idx + "stack"}>{log.stack}</div>}
+                        <div >error: {parseLog(log.args)}</div>
+                        {log?.stack && <div>{log.stack}</div>}
                     </div>
                 }
             })}
