@@ -7,9 +7,11 @@ type Props = {
     depth: number,
     selection: Selection,
     onSelect: (selection: Selection) => void
+    expanded: Set<string>
+    onExpanded: (name: string) => void
 }
 
-const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
+const TreeView = ({name, path, expanded, onExpanded, node, depth, selection, onSelect}: Props) => {
 
     if (node.type === "dir") {
         const children = Object.keys(node.children)
@@ -17,8 +19,21 @@ const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
         const isActive = selection.kind === "dir" && selection.path === dir + ".keep"
         return (
             <div  key={"dir" + name + depth} style={{paddingLeft: `${depth * 10}px`}}>
-                {name === "" ? "" : <button style={{backgroundColor: isActive ? "yellow" : ""}} key={name + "view"} onClick={() => onSelect({ kind: "dir", path: dir })}>{name}</button> }
-                {children.map((child, idx) => (
+                {name === ""
+                    ? <></>
+                    :<button
+                        style={{backgroundColor: isActive ? "yellow" : ""}}
+                        key={name + "view"}
+                        onClick={() => onSelect({ kind: "dir", path: dir })}>{name}
+                    </button> }
+                {
+                    Object.keys(node.children).length > 0 && name !== ""
+                        ? <button
+                            onClick={() => onExpanded(path)}>{expanded.has(path) ? "-" : "+" }
+                          </button>
+                        : <></>
+                }
+                {expanded.has(path) && children.map((child, idx) => (
                     child.includes(".keep") ? <></> :
                         <TreeView
                             key={child + idx + depth}
@@ -28,6 +43,8 @@ const TreeView = ({name, path,  node, depth, selection, onSelect}: Props) => {
                             depth={depth + 1}
                             onSelect={onSelect}
                             selection={selection}
+                            expanded={expanded}
+                            onExpanded={onExpanded}
                         />
                 ))}
             </div>)

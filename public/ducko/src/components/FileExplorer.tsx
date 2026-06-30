@@ -1,6 +1,6 @@
-import type {Files, Project, TreeNode} from "../types";
+import type {Files, Project, Selection, TreeNode} from "../types";
 import TreeView from "./TreeView.tsx";
-import type {Selection} from "../types";
+import {useState} from "react";
 
 type Props = {
     selection: Selection,
@@ -12,6 +12,7 @@ type Props = {
     deleteFolder: (name: string) => void
     renameFolder: (oldName: string, newName: string) => void
 }
+
 const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js)$/
 const DIRECTORY_REGEX = /^[a-zA-Z0-9-_]+$/
 
@@ -32,13 +33,30 @@ const buildDirTree = (files: Files) => {
         }
         // Now we're at the file. The last index of the seg length is the file name.
         // @ts-ignore
+        if (path.endsWith(".keep")) continue
         node.children[seg[seg.length - 1]] = {type: "file", path}
     }
     return root
 }
 
 
-const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, createFile, renameFolder, deleteFolder }: Props ) => {
+
+const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile, createFile, renameFolder, deleteFolder }: Props ) => {
+    const [expanded, setExpanded] = useState<Set<string>>(new Set([""]))
+
+    const onExpanded = (dir: string) => {
+        if (!dir) return
+        setExpanded(prev => {
+            const next = new Set(prev)
+            if(next.has(dir)) {
+                next.delete(dir)
+                return next
+            }
+            next.add(dir)
+            return next
+        })
+    }
+
     const fileNameValid = (fileName: string, fullPath: string) => {
         if (`${fullPath}${fileName}` in project.files) {
             window.alert("File already exists")
@@ -135,10 +153,9 @@ const FileExplorer = ({project, selection, onSelection, renameFile, deleteFile, 
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
             <button onClick={handleAddDirOnClick}>+Folder</button>
-            <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={onSelection} depth={0} name={""} path={""} />
+            <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={onSelection} expanded={expanded} onExpanded={onExpanded} depth={0} name={""} path={""} />
         </div>
     )
 }
-
 export default FileExplorer
 
