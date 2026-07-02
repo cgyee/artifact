@@ -1,6 +1,7 @@
 package project
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/project/new", h.create)
 	mux.HandleFunc("GET /api/project/{projectID}", h.get)
 	mux.HandleFunc("POST /api/project/{projectID}", h.save)
+	mux.HandleFunc("POST /api/project/{projectID}/images", h.saveImg)
 	mux.HandleFunc("GET /api/project/{projectID}/render", h.render)
 	mux.HandleFunc("GET /api/project/{projectID}/{fileName}/", h.file)
 	mux.HandleFunc("GET /view/project/{projectID}", h.render)
@@ -39,6 +41,17 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		projectID = id.String()
 	}
 	url := fmt.Sprintf("/project/%s", projectID)
+	project := Project{ID: projectID}
+	defaults := map[string]File{
+		"index.html": {Content: "<h1>Hello, world!</h1>"},
+		"styles.css": {Content: "body { color: red }"},
+		"app.js":     {Content: "console.log('Hello, world!')"},
+	}
+	project.Files = defaults
+	if err := h.repo.Save(r.Context(), project); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
@@ -80,11 +93,43 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	if err := h.repo.Save(r.Context(), project); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
+	return
+}
+
+func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("projectID")
+	project, err := h.repo.Get(r.Context(), projectID)
+	if errors.Is(err, ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	_, header, err := r.FormFile("imgFile")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	fileName := header.Filename
+	contents, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	project.Files[fileName] = File{
+		Content: base64.StdEncoding.EncodeToString(contents),
+	}
+	if err = h.repo.Save(r.Context(), project); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	w.WriteHeader(http.StatusCreated)
 	return
 }
@@ -108,6 +153,16 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
 		contentType = "application/octet-stream"
+	}
+	if !(ext == ".html" || ext == ".js" || ext == ".css") {
+		content, err := base64.StdEncoding.DecodeString(project.Files[path].Content)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		project.Files[path] = File{
+			Content: string(content),
+		}
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[path].Content)))
