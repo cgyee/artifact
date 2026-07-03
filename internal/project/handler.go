@@ -21,7 +21,7 @@ type Handler struct {
 	repo Repository
 }
 
-const maxFileSize int = 2 * 1024 * 1024
+const maxFileSize int64 = 2 * 1024 * 1024
 
 func NewProjectHandler(repo Repository) *Handler {
 	return &Handler{repo}
@@ -116,6 +116,14 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if err := r.ParseMultipartForm(maxFileSize); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		res, _ := json.Marshal(ErrorResponse{Error: "Error parsing form"})
+		w.Write(res)
+		return
 	}
 	file, header, err := r.FormFile("imgFile")
 	if err != nil {
@@ -123,15 +131,15 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	contents, _ := io.ReadAll(file)
 	fileName := header.Filename
-	if len(contents) > maxFileSize {
+	if header.Size > maxFileSize {
 		res := ErrorResponse{Error: "Image is too large"}
+		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(res.Error))
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	contents, err := io.ReadAll(file)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -141,6 +149,7 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 	}
 	if err = h.repo.Save(r.Context(), project); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
 	return
@@ -169,19 +178,19 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	var content []byte
 	if !(ext == ".html" || ext == ".js" || ext == ".css") {
-		content, err := base64.StdEncoding.DecodeString(project.Files[file].Content)
+		content, err = base64.StdEncoding.DecodeString(project.Files[file].Content)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		project.Files[file] = File{
-			Content: string(content),
-		}
+	} else {
+		content = []byte(project.Files[file].Content)
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[file].Content)))
-	w.Write([]byte(project.Files[file].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(content)))
+	w.Write(content)
 	return
 }
 
