@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { File } from "../types";
+import type {File, Kind} from "../types";
 import { debounce } from "../util/debounce";
 import CodeMirror from "@uiw/react-codemirror"
 import { javascript } from "@codemirror/lang-javascript";
@@ -10,14 +10,14 @@ type Props = {
     src: string
     name: string
     file: File
-    kind: "file" | "dir"
+    kind: Kind
     onChange: (content: string) => void
     resetLogs: () => void
 }
 
 const Editor = ({name, src, resetLogs, kind, file, onChange}: Props) => {
     const [enabled, setEnabled] = useState<boolean>(false)
-    const disabled = kind === "dir"
+    const disabled = kind === "dir" || kind === "imgFile"
     const [renderToken, setRenderToken] = useState(0);
 
     const refreshNow = () => {

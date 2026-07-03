@@ -1,6 +1,7 @@
 import type {Files, Project, Selection, TreeNode} from "../types";
 import TreeView from "./TreeView.tsx";
 import {useState} from "react";
+import {Form} from "react-router";
 
 type Props = {
     selection: Selection,
@@ -11,9 +12,11 @@ type Props = {
     createFile: (name: string) => void
     deleteFolder: (name: string) => void
     renameFolder: (oldName: string, newName: string) => void
+    createImgFile: (formData: FormData) => Promise<boolean>
 }
 
 const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js)$/
+const IMAGENAME_REGEX = /^[a-zA-Z0-9-_]+\.(png|jpg|jpeg|gif)$/
 const DIRECTORY_REGEX = /^[a-zA-Z0-9-_]+$/
 
 
@@ -34,16 +37,21 @@ const buildDirTree = (files: Files) => {
         // Now we're at the file. The last index of the seg length is the file name.
         // @ts-ignore
         if (path.endsWith(".keep")) continue
-        node.children[seg[seg.length - 1]] = {type: "file", path}
+        const file = path.slice(path.lastIndexOf("/") + 1)
+        if (FILENAME_REGEX.test(file)) {
+            node.children[seg[seg.length - 1]] = {type: "file", path}
+        }
+        if (IMAGENAME_REGEX.test(file)) {
+            node.children[seg[seg.length -1]] = {type: "imgFile", path}
+        }
     }
     return root
 }
 
 
 
-const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile, createFile, renameFolder, deleteFolder }: Props ) => {
+const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile, createFile, createImgFile, renameFolder, deleteFolder }: Props ) => {
     const [expanded, setExpanded] = useState<Set<string>>(new Set([""]))
-
     const onExpanded = (dir: string) => {
         if (!dir) return
         setExpanded(prev => {
@@ -64,6 +72,19 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
         }
         if (!FILENAME_REGEX.test(fileName)) {
             window.alert("Invalid file name")
+            return false
+        }
+        return true
+    }
+
+    const imgNameValid = (fileName: string, fullPath: string) => {
+        console.log(fullPath, fileName)
+        if (`${fullPath}${fileName}` in project.files) {
+            window.alert("File already exists")
+            return false
+        }
+        if (!IMAGENAME_REGEX.test(fileName)) {
+            window.alert("Invalid image file name")
             return false
         }
         return true
@@ -126,7 +147,10 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
         }
         const path = generatePath(selection.path)
         const fullPath = `${path}${newName}`
-        if (!fileNameValid(newName, path)) return
+
+        // determine if the current selection is a "standard" file or an image
+        if ((selection.kind === "imgFile") && !imgNameValid(newName, path)) return
+        if ((selection.kind === "file") && !fileNameValid(newName, path)) return
         renameFile(selection.path, fullPath)
         onSelection({kind: "file", path: fullPath})
     }
@@ -146,6 +170,25 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
         }
         deleteFile(selection.path)
     }
+    const handelSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        console.log(e.currentTarget)
+        const formData = new FormData(e.currentTarget)
+         createImgFile(formData).then(
+            (r) => {
+                if (!r) {
+                    window.alert("Error uploading image")
+                    return
+                }
+                window.alert("Image uploaded successfully")
+            },
+            (err) => {
+                window.alert("Error uploading image: " + err)
+            }
+        )
+
+    }
+
     return (
         <div>
             <div>FileExplorer</div>
@@ -153,6 +196,11 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
             <button onClick={handleAddDirOnClick}>+Folder</button>
+            <Form onSubmit={(e) => handelSubmit(e)} method="post" action={"/"}>
+                <label htmlFor="imgFile">Upload Image</label>
+                <input hidden id={"imgFile"} name="imgFile" type="file" accept={"image/jpeg, image/jpg, image/png"}></input>
+                <button type="submit">Submit</button>
+            </Form>
             <TreeView node={buildDirTree(project.files)} selection={selection} onSelect={onSelection} expanded={expanded} onExpanded={onExpanded} depth={0} name={""} path={""} />
         </div>
     )

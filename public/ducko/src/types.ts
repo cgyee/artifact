@@ -11,14 +11,16 @@ export type Project = {
     files: Files
 }
 
+export type Kind = "file" | "imgFile" | "dir"
+
 export type Selection = {
-    kind: "file" | "imgFile" | "dir"
+    kind: Kind
     path: string
 }
 
 export type TreeNode =
     | { type: "dir"; children: Record<string, TreeNode> }
-    | { type: "file" | "imgFile"; path: string };
+    | { type: Exclude<Kind, "dir">; path: string };
 
 export type LogEntry = {
     source: string

@@ -9,7 +9,7 @@ import type {LogEntry} from "../types.ts";
 
 export const Edit = () => {
     const projectId = useParams()?.projectId ?? ""
-    const { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, deleteFolder, renameFolder } = useProject(projectId)
+    const { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, createImgFile, deleteFolder, renameFolder } = useProject(projectId)
     const [logs, setLogs] = useState<LogEntry[]>([])
 
     const onLogs = (logs: LogEntry[]) => {
@@ -26,6 +26,7 @@ export const Edit = () => {
                 createFile={createFile}
                 deleteFolder={deleteFolder}
                 renameFolder={renameFolder}
+                createImgFile={createImgFile}
             />
             <Editor
                 file={project.files[selection.path]}

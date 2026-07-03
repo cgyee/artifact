@@ -49,8 +49,8 @@ const TreeView = ({name, path, expanded, onExpanded, node, depth, selection, onS
                 ))}
             </div>)
 
-    } else if (node.type === "file") {
-        return <button key={name + depth} onClick={() => onSelect({ kind: "file", path })}>{name}</button>
+    } else if (node.type === "file" || node.type === "imgFile") {
+        return <button key={name + depth} onClick={() => onSelect({ kind: node.type, path })}>{name}</button>
     } else {
         return <></>
     }
