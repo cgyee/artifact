@@ -56,6 +56,26 @@ export default function useProject(id: string) {
         set(project.id, next.files)
     }
 
+    const createImgFile = async (formData: FormData) => {
+        const file = formData.get("imgFile") as File
+        const next: Project = {
+            ...project,
+            files: { ...project.files, [file.name]: { content: await file.text() } },
+        }
+
+        setProject(next)
+        try {
+            const res = await fetch(`${api}/project/${id}/images`, {
+                method: "POST",
+                body: formData,
+            })
+            return res.ok
+        } catch (e) {
+            console.error(e)
+            return false
+        }
+    }
+
     const updateContent = (name: string, content: string) => {
         const next: Project = {
             ...project,
@@ -128,5 +148,5 @@ export default function useProject(id: string) {
         })()
     }, [id])
 
-    return { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, renameFolder, deleteFolder }
+    return { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, createImgFile, renameFolder, deleteFolder }
 }

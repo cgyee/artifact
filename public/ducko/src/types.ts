@@ -12,13 +12,13 @@ export type Project = {
 }
 
 export type Selection = {
-    kind: "file" | "dir"
+    kind: "file" | "imgFile" | "dir"
     path: string
 }
 
 export type TreeNode =
     | { type: "dir"; children: Record<string, TreeNode> }
-    | { type: "file"; path: string };
+    | { type: "file" | "imgFile"; path: string };
 
 export type LogEntry = {
     source: string
