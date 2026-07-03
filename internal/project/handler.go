@@ -9,14 +9,19 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 )
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 type Handler struct {
 	repo Repository
 }
+
+const maxFileSize int = 2 * 1024 * 1024
 
 func NewProjectHandler(repo Repository) *Handler {
 	return &Handler{repo}
@@ -28,10 +33,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/project/{projectID}", h.save)
 	mux.HandleFunc("POST /api/project/{projectID}/images", h.saveImg)
 	mux.HandleFunc("GET /api/project/{projectID}/render", h.render)
-	mux.HandleFunc("GET /api/project/{projectID}/{fileName}/", h.file)
+	mux.HandleFunc("GET /api/project/{projectID}/{fileName...}", h.file)
 	mux.HandleFunc("GET /view/project/{projectID}", h.render)
-	mux.HandleFunc("GET /view/project/{projectID}/{fileName}/", h.file)
-	mux.HandleFunc("GET /view/project/{projectID}/", h.file)
+	mux.HandleFunc("GET /view/project/{projectID}/{fileName...}", h.file)
 
 }
 
@@ -113,13 +117,21 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	_, header, err := r.FormFile("imgFile")
+	file, header, err := r.FormFile("imgFile")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer file.Close()
+	contents, _ := io.ReadAll(file)
 	fileName := header.Filename
-	contents, err := io.ReadAll(r.Body)
+	if len(contents) > maxFileSize {
+		res := ErrorResponse{Error: "Image is too large"}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(res.Error))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -136,9 +148,12 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectID")
-	path := strings.TrimPrefix(r.URL.Path, "/api/project/"+projectID+"/")
+	file := r.PathValue("fileName")
+	if file == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	// Remove trailing slash if present
-	path = strings.TrimSuffix(path, "/")
 	project, err := h.repo.Get(r.Context(), projectID)
 
 	if errors.Is(err, ErrNotFound) {
@@ -149,24 +164,24 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ext := filepath.Ext(path)
+	ext := filepath.Ext(file)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	if !(ext == ".html" || ext == ".js" || ext == ".css") {
-		content, err := base64.StdEncoding.DecodeString(project.Files[path].Content)
+		content, err := base64.StdEncoding.DecodeString(project.Files[file].Content)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		project.Files[path] = File{
+		project.Files[file] = File{
 			Content: string(content),
 		}
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[path].Content)))
-	w.Write([]byte(project.Files[path].Content))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(project.Files[file].Content)))
+	w.Write([]byte(project.Files[file].Content))
 	return
 }
 

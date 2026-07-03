@@ -15,7 +15,7 @@ type Props = {
     createImgFile: (formData: FormData) => Promise<boolean>
 }
 
-const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js)$/
+const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js|json|txt|md)$/
 const IMAGENAME_REGEX = /^[a-zA-Z0-9-_]+\.(png|jpg|jpeg|gif)$/
 const DIRECTORY_REGEX = /^[a-zA-Z0-9-_]+$/
 

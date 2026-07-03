@@ -11,6 +11,8 @@ const emptyProject: Project = {
         "app.js": { content: "" },
     },
 }
+const maxFileSize = 1024 * 1024 * 2;
+
 
 async function get(id: string) {
     try {
@@ -60,8 +62,16 @@ export default function useProject(id: string) {
         const file = formData.get("imgFile") as File
         const next: Project = {
             ...project,
-            files: { ...project.files, [file.name]: { content: await file.text() } },
+            files: { ...project.files, [file.name]: { content: "" } },
         }
+        if (file.size > maxFileSize) {
+            alert("Image is too large")
+            return false
+        }
+        formData.append(
+            "imgFile",
+            new File([file], file.name, { type: file.type, lastModified: Date.now() }),
+        )
 
         setProject(next)
         try {
