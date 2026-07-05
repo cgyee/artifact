@@ -145,8 +145,9 @@ export default function useProject(id: string) {
     }
 
     const debouncedSave = useMemo(
-        () => debounce((p: Project) => {
-            set(id, p.files)
+         () => debounce(async (p: Project) => {
+             await set(id, p.files)
+
         }, 300),
         [id]
     )
@@ -158,5 +159,5 @@ export default function useProject(id: string) {
         })()
     }, [id])
 
-    return { project, selection, onSelect, updateContent, renameFile, deleteFile, createFile, createImgFile, renameFolder, deleteFolder }
+    return { project, selection, onSelect, debouncedSave, updateContent, renameFile, deleteFile, createFile, createImgFile, renameFolder, deleteFolder }
 }
