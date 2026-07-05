@@ -15,8 +15,8 @@ type Props = {
     createImgFile: (formData: FormData) => Promise<boolean>
 }
 
-const FILENAME_REGEX = /^[a-zA-Z0-9-_]+\.(html|css|js|json|txt|md)$/
-const IMAGENAME_REGEX = /^[a-zA-Z0-9-_]+\.(png|jpg|jpeg|gif)$/
+const FILENAME_REGEX = /^[a-zA-Z0-9-_]+(\/[a-zA-Z0-9-_]+)*\.(html|css|js)$/
+const IMAGENAME_REGEX = /^[a-zA-Z0-9-_]+(\/[a-zA-Z0-9-_]+)*\.(png|jpg|jpeg|gif)$/
 const DIRECTORY_REGEX = /^[a-zA-Z0-9-_]+$/
 
 
@@ -78,7 +78,6 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
     }
 
     const imgNameValid = (fileName: string, fullPath: string) => {
-        console.log(fullPath, fileName)
         if (`${fullPath}${fileName}` in project.files) {
             window.alert("File already exists")
             return false
@@ -152,7 +151,7 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
         if ((selection.kind === "imgFile") && !imgNameValid(newName, path)) return
         if ((selection.kind === "file") && !fileNameValid(newName, path)) return
         renameFile(selection.path, fullPath)
-        onSelection({kind: "file", path: fullPath})
+        onSelection({kind: selection.kind, path: fullPath})
     }
 
     const handleDeleteOnClick = () => {
@@ -188,6 +187,19 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
         )
 
     }
+    const handleMoveOnClick = () => {
+        if (selection.kind === "dir") {
+            window.alert("Moving folders isn't supported yet")
+            return
+        }
+        const newPath = window.prompt("Enter file's full destination path e.g. src/index.html", selection.path)
+
+        if (!newPath) return
+        if ((selection.kind === "imgFile") && !imgNameValid(newPath, "")) return
+        if ((selection.kind === "file") && !fileNameValid(newPath, "")) return
+        renameFile(selection.path, newPath)
+        onSelection({kind: selection.kind, path: newPath})
+    }
 
     return (
         <div>
@@ -196,6 +208,7 @@ const FileExplorer = ({ project, selection, onSelection, renameFile, deleteFile,
             <button onClick={handleRenameOnClick}>Rename</button>
             <button onClick={handleDeleteOnClick}>---</button>
             <button onClick={handleAddDirOnClick}>+Folder</button>
+            <button onClick={handleMoveOnClick}>Move File</button>
             <Form onSubmit={(e) => handelSubmit(e)} method="post" action={"/"}>
                 <label htmlFor="imgFile">Upload Image</label>
                 <input hidden id={"imgFile"} name="imgFile" type="file" accept={"image/jpeg, image/jpg, image/png"}></input>
