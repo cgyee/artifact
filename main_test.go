@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"glitch/internal/project"
@@ -17,57 +18,14 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const (
-	indexFile = "index.html"
-	script    = `<script>
-    (() => {
-	  const safeStringify = a => {
-		try {
-		  const result = JSON.stringify(a)
-		  return result === undefined ? String(a) : result  // "undefined", "function () {...}", etc.
-		} catch {
-		  return String(a)  // catches circular refs too
-		}
-	  }
-      const send = (level, args, extra) => {
-        try {
-          window.parent.postMessage({
-            source: "preview",
-            level,
-            args: args.map(a => safeStringify(a)),
-            timestamp: Date.now(),
-			...extra,
-          }, "*")
-        } catch (e) {
-          console.error(e)
-        }
-      }
-
-      const originalLog = console.log
-      const originalInfo = console.info
-      const originalWarn = console.warn
-      const originalError = console.error
-
-      console.log = (...args) => { send("log", args); originalLog.apply(console, args) }
-      console.info = (...args) => { send("info", args); originalInfo.apply(console, args) }
-      console.warn = (...args) => { send("warn", args); originalWarn.apply(console, args) }
-      console.error = (...args) => { send("error", args); originalError.apply(console, args) }
-
-      window.addEventListener("error", (e) => {
-        send("error", [e.message], { stack: e.error?.stack })
-      })
-
-      window.addEventListener("unhandledrejection", (e) => {
-        send("error", [e.reason], { stack: e.reason?.stack })
-      })
-    })()
-	
-  </script>`
-)
+//go:embed internal/project/preview_script.js
+var previewScript string
+var script = "<script>" + previewScript + "</script>"
 
 var (
 	testServer *httptest.Server
 	testColl   *mongo.Collection
+	indexFile  = "index.html"
 )
 
 // TestMain runs once before any tests. Sets up the shared server + DB connection.

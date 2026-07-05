@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"glitch/internal/project"
 
@@ -10,14 +11,25 @@ import (
 )
 
 var client *mongo.Client
+var handler slog.Handler
 
 func main() {
-	fmt.Println("Starting server...")
+	if os.Getenv("ENV") == "production" {
+		handler = slog.NewJSONHandler(os.Stderr, nil)
+	} else {
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})
+	}
+	slog.SetDefault(slog.New(handler))
+
+	slog.Info("server starting", "port", 8080)
+	slog.Info("Starting server...")
 
 	p := project.NewProjectHandler(project.NewMongoRepository("glitch"))
 	mux := http.NewServeMux()
 	p.Routes(mux)
 
-	fmt.Println("Listening on port http://localhost:8080")
+	slog.Info("Listening on port http://localhost:8080")
 	http.ListenAndServe(":8080", mux)
 }

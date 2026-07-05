@@ -3,8 +3,8 @@ package project
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -37,12 +37,12 @@ func NewMongoRepository(database string) *MongoRepository {
 	if uri == "" {
 		log.Fatal("$MONGODB_URI must be set")
 	}
-	fmt.Println("Connecting to MongoDB...", uri)
+	slog.Info("Connecting to database...", "uri")
 	c, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connected to MongoDB")
+	slog.Info("Connected to database")
 	return &MongoRepository{coll: c.Database(database).Collection(coll)}
 }
 
