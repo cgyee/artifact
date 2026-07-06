@@ -10,7 +10,9 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -20,7 +22,8 @@ type ErrorResponse struct {
 }
 
 type Handler struct {
-	repo Repository
+	repo   Repository
+	script string
 }
 
 //go:embed preview_script.js
@@ -29,7 +32,14 @@ var previewScript string
 const maxFileSize int64 = 2 * 1024 * 1024
 
 func NewProjectHandler(repo Repository) *Handler {
-	return &Handler{repo}
+	clientUrl := os.Getenv("CLIENT_URL")
+	var script string
+	if clientUrl == "" {
+		script = strings.ReplaceAll(previewScript, "CLIENT_URL", "http://glitch.local:5173")
+	} else {
+		script = strings.ReplaceAll(previewScript, "CLIENT_URL", clientUrl)
+	}
+	return &Handler{repo, script}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -246,7 +256,7 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	file := "<script>" + previewScript + "</script>" + project.Files["index.html"].Content
+	file := "<script>" + h.script + "</script>" + project.Files["index.html"].Content
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(file)))
 	w.Write([]byte(file))

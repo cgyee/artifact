@@ -15,7 +15,7 @@
                 args: args.map(a => safeStringify(a)),
                 timestamp: Date.now(),
                 ...extra,
-            }, "*")
+            }, "CLIENT_URL")
         } catch (e) {
             console.error(e)
         }
@@ -40,6 +40,7 @@
     })
 
     window.addEventListener("message", (e) => {
+        if (e.origin !== "CLIENT_URL") return
         if (!(e?.data?.type === "css-update")) return
 
         const href = e.data.file

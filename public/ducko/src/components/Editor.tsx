@@ -7,6 +7,7 @@ import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 
 const APP_NAME = "ducko"
+const PREVIEW_HOST = "http://preview.glitch.local:8080"
 
 type Props = {
     src: string
@@ -36,7 +37,7 @@ const Editor = ({name, src, resetLogs, kind, file, onChange}: Props) => {
         () => debounce((name: string) => {
             iframeRef.current?.contentWindow?.postMessage({
                 source: APP_NAME, type: "css-update", file: name,
-            }, "*")
+            }, `${PREVIEW_HOST}`)
         }, 400),
         []
     )
@@ -94,7 +95,7 @@ const Editor = ({name, src, resetLogs, kind, file, onChange}: Props) => {
                 ref={iframeRef}
                 title={"preview"}
                 id={"preview"}
-                src={`${src}/render?v=${renderToken}`}
+                src={`${PREVIEW_HOST}${src}/render?v=${renderToken}`}
                 key={renderToken}
             ></iframe>
         </>
