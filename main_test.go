@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"glitch/internal/project"
+	"glitch/internal/user"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,8 @@ var (
 	testServer *httptest.Server
 	testColl   *mongo.Collection
 	indexFile  = "index.html"
+
+	testUsrColl *mongo.Collection
 )
 
 // TestMain runs once before any tests. Sets up the shared server + DB connection.
@@ -71,6 +74,13 @@ func resetDB(t *testing.T) {
 func seedProject(t *testing.T, p project.Project) {
 	t.Helper()
 	if _, err := testColl.InsertOne(context.TODO(), p); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+}
+
+func seedUser(t *testing.T, u user.User) {
+	t.Helper()
+	if _, err := testUsrColl.InsertOne(context.TODO(), u); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 }
@@ -216,4 +226,25 @@ func TestNewProject_Redirects(t *testing.T) {
 	if loc := res.Header.Get("Location"); !strings.HasPrefix(loc, "/project/") {
 		t.Errorf("location = %q, want /project/ prefix", loc)
 	}
+}
+
+func TestUser_GetProjects(t *testing.T) {
+	resetDB(t)
+	seedUser(t, user.User{ID: "user-abc", Projects: []string{"abc"}})
+	seedProject(t, project.Project{
+		ID: "abc",
+		Files: map[string]project.File{
+			indexFile: {Content: "<h1>hi</h1>"},
+		},
+	})
+
+	res, err := http.Get(testServer.URL + "/api/user/user-abc/projects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", res.StatusCode)
+	}
+	var got []string
 }

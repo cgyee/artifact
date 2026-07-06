@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"glitch/internal/middleware"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 
 var client *mongo.Client
 var handler slog.Handler
+
+//go:embed public/frontend/dist/index.html
+var index string
 
 func main() {
 	if os.Getenv("ENV") == "production" {
@@ -30,6 +34,10 @@ func main() {
 	mux := http.NewServeMux()
 	p.Routes(mux)
 
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(index))
+	})
+
 	slog.Info("Listening on port http://localhost:8080")
-	http.ListenAndServe(":8080", middleware.Logging(mux))
+	http.ListenAndServe(":8080", middleware.RequestLogger(mux))
 }

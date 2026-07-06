@@ -15,6 +15,7 @@ import (
 type Project struct {
 	ID    string          `bson:"id" json:"id"`
 	Files map[string]File `bson:"files" json:"files"`
+	Name  string          `bson:"name" json:"name"`
 }
 type File struct {
 	Content string `bson:"content" json:"content"`
