@@ -1,37 +1,41 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createMemoryRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { http, HttpResponse } from 'msw'
 import { server } from '../test/setup'
+import { clearEditor, getEditorText, typeInEditor } from '../test/utils/editor'
 import { Edit } from './Edit'
 
 type SaveBody = { files: Record<string, { content: string }> }
 
 function renderEdit(projectId = 'test123') {
-    return render(
-        <MemoryRouter initialEntries={[`/project/${projectId}`]}>
-            <Routes>
-                <Route path="/project/:projectId" element={<Edit />} />
-            </Routes>
-        </MemoryRouter>,
+    const router = createMemoryRouter(
+        [{ path: '/project/:projectId', element: <Edit /> }],
+        { initialEntries: [`/project/${projectId}`] },
     )
+    return render(<RouterProvider router={router} />)
 }
 
 describe('Edit', () => {
     it('loads the project and shows the initial file content', async () => {
-        renderEdit()
-        expect(await screen.findByDisplayValue('<h1>Hello</h1>')).toBeInTheDocument()
+        const { container } = renderEdit()
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
+        )
     })
 
     it('switches the editor content when a different file is selected', async () => {
         const user = userEvent.setup()
-        renderEdit()
-        await screen.findByDisplayValue('<h1>Hello</h1>')
+        const { container } = renderEdit()
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
+        )
 
         await user.click(screen.getByRole('button', { name: 'styles.css' }))
 
-        expect(await screen.findByDisplayValue('body{}')).toBeInTheDocument()
+        await waitFor(() => expect(getEditorText(container)).toBe('body{}'))
     })
 
     it('collapses a burst of typing into a single debounced save with the final content', async () => {
@@ -44,11 +48,13 @@ describe('Edit', () => {
         )
 
         const user = userEvent.setup()
-        renderEdit()
-        const editor = await screen.findByDisplayValue('<h1>Hello</h1>')
+        const { container } = renderEdit()
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
+        )
 
-        await user.clear(editor)
-        await user.type(editor, 'abc')
+        await clearEditor(user, container)
+        await typeInEditor(user, container, 'abc')
 
         // Wait past the 300ms debounce window for the save to land.
         await waitFor(() => expect(saveBodies).toHaveLength(1), { timeout: 1000 })
@@ -66,7 +72,7 @@ const projectWithCustomFile = (id: string) => ({
     id,
     files: {
         'index.html': { content: '<h1>Hello</h1>' },
-        'styles.css': {  content: 'body{}' },
+        'styles.css': { content: 'body{}' },
         'app.js': { content: 'console.log("hi")' },
         'custom.html': { content: '<p>custom</p>' },
     },
@@ -82,17 +88,19 @@ describe('Edit — delete file', () => {
         vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
 
         const user = userEvent.setup()
-        renderEdit()
+        const { container } = renderEdit()
 
         await user.click(await screen.findByRole('button', { name: 'custom.html' }))
         // selection has switched — editor shows the custom file's content
-        await screen.findByDisplayValue('<p>custom</p>')
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<p>custom</p>'),
+        )
 
         await user.click(screen.getByRole('button', { name: '---' }))
 
         expect(screen.queryByRole('button', { name: 'custom.html' })).not.toBeInTheDocument()
         await waitFor(() =>
-            expect(screen.getByRole('textbox')).toHaveValue('<h1>Hello</h1>'),
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
         )
     })
 
@@ -110,10 +118,12 @@ describe('Edit — delete file', () => {
         vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
 
         const user = userEvent.setup()
-        renderEdit()
+        const { container } = renderEdit()
 
         await user.click(await screen.findByRole('button', { name: 'custom.html' }))
-        await screen.findByDisplayValue('<p>custom</p>')
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<p>custom</p>'),
+        )
 
         await user.click(screen.getByRole('button', { name: '---' }))
 
@@ -134,16 +144,18 @@ describe('Edit — rename file', () => {
         vi.stubGlobal('prompt', vi.fn().mockReturnValue('renamed.html'))
 
         const user = userEvent.setup()
-        renderEdit()
+        const { container } = renderEdit()
         await user.click(await screen.findByRole('button', { name: 'custom.html' }))
-        await screen.findByDisplayValue('<p>custom</p>')
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<p>custom</p>'),
+        )
 
         await user.click(screen.getByRole('button', { name: 'Rename' }))
 
         expect(await screen.findByRole('button', { name: 'renamed.html' })).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: 'custom.html' })).not.toBeInTheDocument()
         await waitFor(() =>
-            expect(screen.getByRole('textbox')).toHaveValue('<p>custom</p>'),
+            expect(getEditorText(container)).toBe('<p>custom</p>'),
         )
     })
 
@@ -161,9 +173,11 @@ describe('Edit — rename file', () => {
         vi.stubGlobal('prompt', vi.fn().mockReturnValue('renamed.html'))
 
         const user = userEvent.setup()
-        renderEdit()
+        const { container } = renderEdit()
         await user.click(await screen.findByRole('button', { name: 'custom.html' }))
-        await screen.findByDisplayValue('<p>custom</p>')
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<p>custom</p>'),
+        )
 
         await user.click(screen.getByRole('button', { name: 'Rename' }))
 
@@ -182,8 +196,10 @@ const previewSrc = () => screen.getByTitle('preview').getAttribute('src')
 describe('Edit — preview', () => {
     it('clicking Play immediately bumps the iframe renderToken', async () => {
         const user = userEvent.setup()
-        renderEdit()
-        await screen.findByDisplayValue('<h1>Hello</h1>')
+        const { container } = renderEdit()
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
+        )
 
         expect(previewSrc()).toMatch(/\?v=0$/)
 
@@ -195,13 +211,15 @@ describe('Edit — preview', () => {
 
     it('Auto Refresh on + burst of typing bumps the iframe renderToken exactly once', async () => {
         const user = userEvent.setup()
-        renderEdit()
-        const editor = await screen.findByDisplayValue('<h1>Hello</h1>')
+        const { container } = renderEdit()
+        await waitFor(() =>
+            expect(getEditorText(container)).toBe('<h1>Hello</h1>'),
+        )
 
         await user.click(screen.getByRole('button', { name: /Auto Refresh/i }))
 
-        await user.clear(editor)
-        await user.type(editor, 'abc')
+        await clearEditor(user, container)
+        await typeInEditor(user, container, 'abc')
 
         // Wait past the 300ms debounce window for the single bump to land.
         await waitFor(() => expect(previewSrc()).toMatch(/\?v=1$/), { timeout: 1000 })
@@ -217,7 +235,7 @@ const projectWithCustomFolders = (id: string) => ({
     id,
     files: {
         'index.html': { content: '<h1>Hello</h1>' },
-        'styles.css': {  content: 'body{}' },
+        'styles.css': { content: 'body{}' },
         'app.js': { content: 'console.log("hi")' },
         'public/.keep': { content: '' },
         'public/styles.css': { content: 'body{}' },
@@ -227,31 +245,28 @@ const projectWithCustomFolders = (id: string) => ({
         'public/subfolder/styles.css': { content: 'body{}' },
         'public/subfolder/app.js': { content: 'console.log("hi")' },
         'public/subfolder/my.html': { content: '<p>custom</p>' },
-    }
+    },
 })
 
 describe('Edit - add folder', () => {
     it('adds a folder to the explorer persists the new folder to the server', async () => {
-        const saveBodies: SaveBody[] = []
         server.use(
             http.get('/api/project/:id', ({ params }) =>
                 HttpResponse.json(projectWithCustomFolders(params.id as string)),
             ),
-            http.post('/api/project/:id', async ({ request }) => {
-                saveBodies.push((await request.json()) as SaveBody)
-                return HttpResponse.json({ ok: true })
-            }),
+            http.post('/api/project/:id', async () =>
+                HttpResponse.json({ ok: true }),
+            ),
         )
 
-        vi.stubGlobal('Enter folder name', vi.fn().mockReturnValue("public"))
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue('public'))
 
         const user = userEvent.setup()
         renderEdit()
 
         await user.click(await screen.findByRole('button', { name: '+Folder' }))
 
-
-        expect(await screen.findByRole("button", {name: "public"})).toBeInTheDocument()
+        expect(await screen.findByRole('button', { name: 'public' })).toBeInTheDocument()
     })
 
     it('persists the new folder to the server', async () => {
@@ -266,7 +281,7 @@ describe('Edit - add folder', () => {
             }),
         )
 
-        vi.stubGlobal('prompt', vi.fn().mockReturnValue("public"))
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue('public'))
 
         const user = userEvent.setup()
         renderEdit()
@@ -276,23 +291,20 @@ describe('Edit - add folder', () => {
         await waitFor(() => expect(saveBodies.length).toBeGreaterThanOrEqual(1), { timeout: 1000 })
         const lastSave = saveBodies[saveBodies.length - 1]
         expect(lastSave.files).toHaveProperty('public/.keep')
-
     })
 })
 
 describe('Edit - rename folder', () => {
     it('replaces the folder name in the explorer and preserves the content', async () => {
-        const saveBodies: SaveBody[] = []
         server.use(
             http.get('/api/project/:id', ({ params }) =>
                 HttpResponse.json(projectWithCustomFolders(params.id as string)),
             ),
-            http.post('/api/project/:id', async ({ request }) => {
-                saveBodies.push((await request.json()) as SaveBody)
-                return HttpResponse.json({ ok: true })
-            })
+            http.post('/api/project/:id', async () =>
+                HttpResponse.json({ ok: true }),
+            ),
         )
-        vi.stubGlobal('prompt', vi.fn().mockReturnValue("private"))
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue('private'))
 
         const user = userEvent.setup()
         renderEdit()
@@ -300,7 +312,7 @@ describe('Edit - rename folder', () => {
         await user.click(await screen.findByRole('button', { name: 'public' }))
         await user.click(await screen.findByRole('button', { name: 'Rename' }))
 
-        expect(screen.queryByRole('button', {name: "public"})).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'public' })).not.toBeInTheDocument()
     })
 
     it('persists the rename to the server with the original content under the new name', async () => {
@@ -312,34 +324,33 @@ describe('Edit - rename folder', () => {
             http.post('/api/project/:id', async ({ request }) => {
                 saveBodies.push((await request.json()) as SaveBody)
                 return HttpResponse.json({ ok: true })
-            })
+            }),
         )
 
-        vi.stubGlobal('prompt', vi.fn().mockReturnValue("private"))
+        vi.stubGlobal('prompt', vi.fn().mockReturnValue('private'))
         const user = userEvent.setup()
         renderEdit()
 
         await user.click(await screen.findByRole('button', { name: 'public' }))
         await user.click(await screen.findByRole('button', { name: 'Rename' }))
 
+        await waitFor(() => expect(saveBodies.length).toBeGreaterThanOrEqual(1), { timeout: 1000 })
         const lastSave = saveBodies[saveBodies.length - 1]
-        for(const file in lastSave.files) {
-            expect(file.startsWith("public")).toBeFalsy()
+        for (const file in lastSave.files) {
+            expect(file.startsWith('public')).toBeFalsy()
         }
     })
 })
 
 describe('Edit - delete folder', () => {
     it('removes the folder from the explorer and removes its contents from the editor', async () => {
-        const saveBodies: SaveBody[] = []
         server.use(
             http.get('/api/project/:id', ({ params }) =>
                 HttpResponse.json(projectWithCustomFolders(params.id as string)),
             ),
-            http.post('/api/project/:id', async ({ request }) => {
-                saveBodies.push((await request.json()) as SaveBody)
-                return HttpResponse.json({ ok: true })
-            })
+            http.post('/api/project/:id', async () =>
+                HttpResponse.json({ ok: true }),
+            ),
         )
         vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
 
@@ -349,9 +360,9 @@ describe('Edit - delete folder', () => {
         await user.click(await screen.findByRole('button', { name: 'public' }))
         await user.click(await screen.findByRole('button', { name: '---' }))
 
-        expect(screen.queryByRole('button', {name: 'public'})).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: 'custom.html'})).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: 'my.html'})).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'public' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'custom.html' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'my.html' })).not.toBeInTheDocument()
     })
 
     it('persists the deletion to the server', async () => {
@@ -363,7 +374,7 @@ describe('Edit - delete folder', () => {
             http.post('/api/project/:id', async ({ request }) => {
                 saveBodies.push((await request.json()) as SaveBody)
                 return HttpResponse.json({ ok: true })
-            })
+            }),
         )
         vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
 
@@ -373,9 +384,10 @@ describe('Edit - delete folder', () => {
         await user.click(await screen.findByRole('button', { name: 'public' }))
         await user.click(await screen.findByRole('button', { name: '---' }))
 
+        await waitFor(() => expect(saveBodies.length).toBeGreaterThanOrEqual(1), { timeout: 1000 })
         const lastSave = saveBodies[saveBodies.length - 1]
-        for(const file in lastSave.files) {
-            expect(file.startsWith("public")).toBeFalsy()
+        for (const file in lastSave.files) {
+            expect(file.startsWith('public')).toBeFalsy()
         }
     })
 })
