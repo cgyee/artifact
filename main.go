@@ -1,6 +1,7 @@
 package main
 
 import (
+	"glitch/internal/middleware"
 	"log/slog"
 	"net/http"
 	"os"
@@ -25,11 +26,10 @@ func main() {
 
 	slog.Info("server starting", "port", 8080)
 	slog.Info("Starting server...")
-
 	p := project.NewProjectHandler(project.NewMongoRepository("glitch"))
 	mux := http.NewServeMux()
 	p.Routes(mux)
 
 	slog.Info("Listening on port http://localhost:8080")
-	http.ListenAndServe(":8080", mux)
+	http.ListenAndServe(":8080", middleware.Logging(mux))
 }

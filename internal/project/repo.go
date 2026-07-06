@@ -37,12 +37,11 @@ func NewMongoRepository(database string) *MongoRepository {
 	if uri == "" {
 		log.Fatal("$MONGODB_URI must be set")
 	}
-	slog.Info("Connecting to database...", "uri")
+	slog.Info("Connecting to database...")
 	c, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		panic(err)
 	}
-	slog.Info("Connected to database")
 	return &MongoRepository{coll: c.Database(database).Collection(coll)}
 }
 
