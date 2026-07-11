@@ -3,13 +3,9 @@ package project
 import (
 	"context"
 	"errors"
-	"log"
-	"log/slog"
-	"os"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Project struct {
@@ -23,27 +19,14 @@ type File struct {
 
 var ErrNotFound = errors.New("project not found")
 
-type Repository interface {
-	Get(ctx context.Context, id string) (Project, error)
-	Save(ctx context.Context, project Project) error
-}
-
 type MongoRepository struct {
 	coll *mongo.Collection
 }
 
-func NewMongoRepository(database string) *MongoRepository {
-	uri := os.Getenv("MONGODB_URI")
-	coll := "projects"
-	if uri == "" {
-		log.Fatal("$MONGODB_URI must be set")
-	}
-	slog.Info("Connecting to database...")
-	c, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
-	}
-	return &MongoRepository{coll: c.Database(database).Collection(coll)}
+const coll = "projects"
+
+func NewMongoRepository(db *mongo.Database) *MongoRepository {
+	return &MongoRepository{coll: db.Collection(coll)}
 }
 
 func (r *MongoRepository) Get(ctx context.Context, id string) (Project, error) {

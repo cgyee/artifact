@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"glitch/internal/session"
 	"net/http"
 	"strings"
 )
@@ -10,11 +11,15 @@ type ctxUserIDKey struct{}
 
 var UserIDKey = ctxUserIDKey{}
 
-type SessionStore struct {
-	repo Repository
+type sessionRepository interface {
+	GetSession(ctx context.Context, id string) (session.Session, error)
 }
 
-func NewSessionStore(repo Repository) *SessionStore {
+type SessionStore struct {
+	repo sessionRepository
+}
+
+func NewSessionStore(repo sessionRepository) *SessionStore {
 	return &SessionStore{repo: repo}
 }
 
@@ -32,7 +37,7 @@ func (s *SessionStore) Session(next http.Handler) http.Handler {
 			return
 		}
 		sessionId := cookie.Value
-		session, err := s.repo.ValidSession(r.Context(), sessionId)
+		session, err := s.repo.GetSession(r.Context(), sessionId)
 		if err != nil {
 			logger.Info("invalid session state")
 			http.Redirect(w, r, "/login", http.StatusSeeOther)

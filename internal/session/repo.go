@@ -1,21 +1,14 @@
-package middleware
+package session
 
 import (
 	"context"
 	"errors"
-	"log"
-	"log/slog"
-	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
-
-type Repository interface {
-	ValidSession(ctx context.Context, id string) (Session, error)
-}
 
 type Session struct {
 	ID        string    `bson:"id"`
@@ -28,24 +21,15 @@ type MongoRepository struct {
 	coll *mongo.Collection
 }
 
+const coll = "sessions"
+
 var ErrNotFound = errors.New("session not found")
 
-func NewMongoRepository(database string) *MongoRepository {
-
-	uri := os.Getenv("MONGODB_URI")
-	coll := "sessions"
-	if uri == "" {
-		log.Fatal("$MONGODB_URI must be set")
-	}
-	slog.Info("Connecting to database...")
-	c, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
-	}
-	return &MongoRepository{coll: c.Database(database).Collection(coll)}
+func NewMongoRepository(db *mongo.Database) *MongoRepository {
+	return &MongoRepository{coll: db.Collection(coll)}
 }
 
-func (r *MongoRepository) ValidSession(ctx context.Context, id string) (Session, error) {
+func (r *MongoRepository) GetSession(ctx context.Context, id string) (Session, error) {
 	res := r.coll.FindOne(ctx, bson.M{"id": id})
 	session := Session{}
 	if res.Err() != nil {
@@ -63,7 +47,22 @@ func (r *MongoRepository) ValidSession(ctx context.Context, id string) (Session,
 	return session, nil
 }
 
-func (r *MongoRepository) revokeSession(ctx context.Context, id string) error {
+func (r *MongoRepository) CreateSession(ctx context.Context, id string, userID string) error {
+	filter := bson.M{"id": id, "user_id": userID}
+	update := bson.M{"$set": bson.M{
+		"id":         id,
+		"user_id":    userID,
+		"created_at": time.Now(),
+		"expires_at": time.Now().Add(72 * time.Hour),
+	}}
+	opts := options.UpdateOne().SetUpsert(true)
+	if _, err := r.coll.UpdateOne(ctx, filter, update, opts); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *MongoRepository) RevokeSession(ctx context.Context, id string) error {
 	_, err := r.coll.DeleteOne(ctx, bson.M{"id": id})
 	return err
 }

@@ -2,20 +2,32 @@ package login
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"glitch/internal/middleware"
+	"glitch/internal/user"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 )
 
+type userRepository interface {
+	GetUser(ctx context.Context, username string) (user.User, error)
+	CreateUser(ctx context.Context, username string) error
+}
+
+type sessionRepository interface {
+	CreateSession(ctx context.Context, id string, userID string) error
+}
+
 type Handler struct {
-	repo        Repository
+	userRepo    userRepository
+	sessionRepo sessionRepository
 	credentials Credentials
 }
 
@@ -36,7 +48,7 @@ type GitHubUser struct {
 	Email  string `json:"email"`
 }
 
-func NewHandler(repo Repository) *Handler {
+func NewHandler(userRepo userRepository, sessionRepo sessionRepository) *Handler {
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	if clientID == "" {
@@ -46,7 +58,7 @@ func NewHandler(repo Repository) *Handler {
 		panic("Must set GITHUB_CLIENT_SECRET")
 	}
 	credentials := Credentials{ClientID: clientID, ClientSecret: clientSecret}
-	return &Handler{repo: repo, credentials: credentials}
+	return &Handler{userRepo: userRepo, sessionRepo: sessionRepo, credentials: credentials}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -152,9 +164,9 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info("github user fetched", "username", ghUser.Login, "github_id", ghUser.UserID)
 	username := ghUser.Login
-	_, err = h.repo.GetUser(r.Context(), username)
-	if errors.Is(err, ErrNotFound) {
-		if err := h.repo.CreateUser(r.Context(), username); err != nil {
+	_, err = h.userRepo.GetUser(r.Context(), username)
+	if errors.Is(err, user.ErrNotFound) {
+		if err := h.userRepo.CreateUser(r.Context(), username); err != nil {
 			logger.Error("error creating user", "user", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -165,7 +177,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := GenerateSecureToken(32)
-	if err := h.repo.CreateSession(r.Context(), id, username); err != nil {
+	if err := h.sessionRepo.CreateSession(r.Context(), id, username); err != nil {
 		logger.Error("error creating session", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

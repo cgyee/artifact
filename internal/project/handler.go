@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -21,8 +22,13 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type repository interface {
+	Save(ctx context.Context, project Project) error
+	Get(ctx context.Context, projectID string) (Project, error)
+}
+
 type Handler struct {
-	repo   Repository
+	repo   repository
 	script string
 }
 
@@ -31,7 +37,7 @@ var previewScript string
 
 const maxFileSize int64 = 2 * 1024 * 1024
 
-func NewProjectHandler(repo Repository) *Handler {
+func NewProjectHandler(repo repository) *Handler {
 	clientUrl := os.Getenv("CLIENT_URL")
 	var script string
 	if clientUrl == "" {

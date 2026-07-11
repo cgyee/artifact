@@ -2,10 +2,6 @@ package user
 
 import "net/http"
 
-type User struct {
-	ID string
-}
-
 type Handler struct {
 }
 
