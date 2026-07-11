@@ -102,7 +102,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	githubTokenURL := fmt.Sprintf("https://github.com/login/oauth/access_token")
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
-	if cookie == nil || state != cookie.Value {
+	if state != cookie.Value {
 		logger.Error("invalid state", "cookie_state", cookie.Value, "url_state", state)
 		w.WriteHeader(http.StatusUnauthorized)
 		return

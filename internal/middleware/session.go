@@ -37,13 +37,13 @@ func (s *SessionStore) Session(next http.Handler) http.Handler {
 			return
 		}
 		sessionId := cookie.Value
-		session, err := s.repo.GetSession(r.Context(), sessionId)
+		sess, err := s.repo.GetSession(r.Context(), sessionId)
 		if err != nil {
 			logger.Info("invalid session state")
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		ctx := context.WithValue(r.Context(), UserIDKey, session.UserID)
+		ctx := context.WithValue(r.Context(), UserIDKey, sess.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return
 	})
