@@ -5,8 +5,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"glitch/internal/middleware"
+	"glitch/internal/database"
 	"glitch/internal/project"
+	"glitch/internal/session"
 	"glitch/internal/user"
 	"io"
 	"net/http"
@@ -18,7 +19,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 //go:embed internal/project/preview_script.js
@@ -36,27 +36,18 @@ var (
 
 // TestMain runs once before any tests. Sets up the shared server + DB connection.
 func TestMain(m *testing.M) {
-	uri := os.Getenv("MONGODB_TEST_URI")
-	if uri == "" {
-		uri = "mongodb://localhost:27017"
-	}
-	fmt.Println("Connecting to MongoDB...", uri)
-	c, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
-	}
-	defer c.Disconnect(context.TODO())
+	db, cleanup := database.Connect("test")
+	defer cleanup()
 
-	client = c // assigns the package-level global from main.go
-	testColl = client.Database("test").Collection("projects")
-	testUsrColl = client.Database("test").Collection("users")
-	testCookieColl = client.Database("test").Collection("sessions")
+	testColl = db.Collection("projects")
+	testUsrColl = db.Collection("users")
+	testCookieColl = db.Collection("sessions")
 
 	// Build the same mux production uses. When you extract to a package,
 	// this becomes: projects.NewHandler(repo).Routes(mux).
 	mux := http.NewServeMux()
 
-	p := project.NewProjectHandler(project.NewMongoRepository("test"))
+	p := project.NewProjectHandler(project.NewMongoRepository(db))
 	p.Routes(mux)
 
 	testServer = httptest.NewServer(mux)
@@ -90,7 +81,7 @@ func seedUser(t *testing.T, u user.User) {
 	}
 }
 
-func seedCookie(t *testing.T, s middleware.Session) {
+func seedCookie(t *testing.T, s session.Session) {
 	t.Helper()
 	if _, err := testCookieColl.InsertOne(context.TODO(), s); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -262,9 +253,9 @@ func TestNewProject_Redirects(t *testing.T) {
 
 func TestUser_Authorization(t *testing.T) {
 	resetDB(t)
-	seedUser(t, user.User{ID: "user-abc"})
+	seedUser(t, user.User{Username: "user-abc"})
 	seedProject(t, project.Project{ID: "abc", Files: map[string]project.File{indexFile: {Content: "<h1>hi</h1>"}}})
-	seedCookie(t, middleware.Session{UserID: "user-abc", ID: "session-abc", CreatedAt: time.Now(), ExpiresAt: time.Now().Add(1 * time.Hour)})
+	seedCookie(t, session.Session{UserID: "user-abc", ID: "session-abc", CreatedAt: time.Now(), ExpiresAt: time.Now().Add(1 * time.Hour)})
 	res, err := http.Get(testServer.URL + "/api/project/abc")
 	if err != nil {
 		t.Fatal(err)
