@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"glitch/internal/login"
 	"glitch/internal/middleware"
 	"log/slog"
 	"net/http"
@@ -31,8 +32,11 @@ func main() {
 	slog.Info("server starting", "port", 8080)
 	slog.Info("Starting server...")
 	p := project.NewProjectHandler(project.NewMongoRepository("glitch"))
+	l := login.NewHandler(login.NewMongoRepository("glitch"))
+	s := middleware.NewSessionStore(middleware.NewMongoRepository("glitch"))
 	mux := http.NewServeMux()
-	p.Routes(mux)
+	p.Routes(mux, s.Session)
+	l.Routes(mux)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(index))

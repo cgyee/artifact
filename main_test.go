@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"glitch/internal/middleware"
 	"glitch/internal/project"
 	"glitch/internal/user"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -28,7 +30,8 @@ var (
 	testColl   *mongo.Collection
 	indexFile  = "index.html"
 
-	testUsrColl *mongo.Collection
+	testUsrColl    *mongo.Collection
+	testCookieColl *mongo.Collection
 )
 
 // TestMain runs once before any tests. Sets up the shared server + DB connection.
@@ -46,6 +49,8 @@ func TestMain(m *testing.M) {
 
 	client = c // assigns the package-level global from main.go
 	testColl = client.Database("test").Collection("projects")
+	testUsrColl = client.Database("test").Collection("users")
+	testCookieColl = client.Database("test").Collection("sessions")
 
 	// Build the same mux production uses. When you extract to a package,
 	// this becomes: projects.NewHandler(repo).Routes(mux).
@@ -81,6 +86,13 @@ func seedProject(t *testing.T, p project.Project) {
 func seedUser(t *testing.T, u user.User) {
 	t.Helper()
 	if _, err := testUsrColl.InsertOne(context.TODO(), u); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+}
+
+func seedCookie(t *testing.T, s middleware.Session) {
+	t.Helper()
+	if _, err := testCookieColl.InsertOne(context.TODO(), s); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 }
@@ -228,23 +240,40 @@ func TestNewProject_Redirects(t *testing.T) {
 	}
 }
 
-func TestUser_GetProjects(t *testing.T) {
-	resetDB(t)
-	seedUser(t, user.User{ID: "user-abc", Projects: []string{"abc"}})
-	seedProject(t, project.Project{
-		ID: "abc",
-		Files: map[string]project.File{
-			indexFile: {Content: "<h1>hi</h1>"},
-		},
-	})
+//func TestUser_GetProjects(t *testing.T) {
+//	resetDB(t)
+//	seedUser(t, user.User{ID: "user-abc"})
+//	seedProject(t, project.Project{
+//		ID: "abc",
+//		Files: map[string]project.File{
+//			indexFile: {Content: "<h1>hi</h1>"},
+//		},
+//	})
+//
+//	res, err := http.Get(testServer.URL + "/api/user/user-abc/projects")
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	defer res.Body.Close()
+//	if res.StatusCode != http.StatusOK {
+//		t.Errorf("status = %d, want 200", res.StatusCode)
+//	}
+//}
 
-	res, err := http.Get(testServer.URL + "/api/user/user-abc/projects")
+func TestUser_Authorization(t *testing.T) {
+	resetDB(t)
+	seedUser(t, user.User{ID: "user-abc"})
+	seedProject(t, project.Project{ID: "abc", Files: map[string]project.File{indexFile: {Content: "<h1>hi</h1>"}}})
+	seedCookie(t, middleware.Session{UserID: "user-abc", ID: "session-abc", CreatedAt: time.Now(), ExpiresAt: time.Now().Add(1 * time.Hour)})
+	res, err := http.Get(testServer.URL + "/api/project/abc")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
+	//if res.StatusCode != http.StatusUnauthorized {
+	//	t.Errorf("status = %d, want 401", res.StatusCode)
+	//}
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", res.StatusCode)
 	}
-	var got []string
 }

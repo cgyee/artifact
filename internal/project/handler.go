@@ -42,15 +42,15 @@ func NewProjectHandler(repo Repository) *Handler {
 	return &Handler{repo, script}
 }
 
-func (h *Handler) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/project/new", h.create)
-	mux.HandleFunc("GET /api/project/{projectID}", h.get)
-	mux.HandleFunc("POST /api/project/{projectID}", h.save)
-	mux.HandleFunc("POST /api/project/{projectID}/images", h.saveImg)
-	mux.HandleFunc("GET /api/project/{projectID}/render", h.render)
-	mux.HandleFunc("GET /api/project/{projectID}/{fileName...}", h.file)
-	mux.HandleFunc("GET /view/project/{projectID}", h.render)
-	mux.HandleFunc("GET /view/project/{projectID}/{fileName...}", h.file)
+func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) http.Handler) {
+	mux.Handle("GET /api/project/new", applyMiddleware(http.HandlerFunc(h.create), middleware...))
+	mux.Handle("GET /api/project/{projectID}", applyMiddleware(http.HandlerFunc(h.get), middleware...))
+	mux.Handle("POST /api/project/{projectID}", applyMiddleware(http.HandlerFunc(h.save), middleware...))
+	mux.Handle("POST /api/project/{projectID}/images", applyMiddleware(http.HandlerFunc(h.saveImg), middleware...))
+	mux.Handle("GET /api/project/{projectID}/render", applyMiddleware(http.HandlerFunc(h.render), middleware...))
+	mux.Handle("GET /api/project/{projectID}/{fileName...}", applyMiddleware(http.HandlerFunc(h.file), middleware...))
+	mux.Handle("GET /view/project/{projectID}", http.HandlerFunc(h.render))
+	mux.Handle("GET /view/project/{projectID}/{fileName...}", http.HandlerFunc(h.file))
 
 }
 
@@ -262,4 +262,14 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(file))
 	logger.Info("rendered project", "file", "index.html")
 	return
+}
+
+func applyMiddleware(h http.Handler, middleware ...func(http.Handler) http.Handler) http.Handler {
+	if len(middleware) == 0 {
+		return h
+	}
+	for i := len(middleware) - 1; i >= 0; i-- {
+		h = middleware[i](h)
+	}
+	return h
 }
