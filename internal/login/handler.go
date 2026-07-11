@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"glitch/internal/middleware"
 	"net/http"
@@ -70,13 +71,11 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		"client_id":    {h.credentials.ClientID},
 		"scope":        {"user:email read:user"},
 		"state":        {state},
-		"redirect_uri": {"http://preview.glitch.local:8080/api/callback"},
+		"redirect_uri": {"http://glitch.local:8080/api/callback"},
 	}
 
 	authURL := "https://github.com/login/oauth/authorize?" + params.Encode()
-	logger.Info("redirecting to github", "url", authURL)
-	logger.Info("state", "state", state)
-	logger.Info("cookie", "cookie", cookie)
+	logger.Info("redirecting to github")
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
@@ -92,7 +91,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 	if cookie == nil || state != cookie.Value {
-		logger.Error("invalid state", "cookie", "state", state)
+		logger.Error("invalid state", "cookie_state", cookie.Value, "url_state", state)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -151,10 +150,10 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	logger.Info("got user", "user", ghUser)
+	logger.Info("github user fetched", "username", ghUser.Login, "github_id", ghUser.UserID)
 	username := ghUser.Login
-	yes, err := h.repo.UserExists(r.Context(), username)
-	if err != nil && !yes {
+	_, err = h.repo.GetUser(r.Context(), username)
+	if errors.Is(err, ErrNotFound) {
 		if err := h.repo.CreateUser(r.Context(), username); err != nil {
 			logger.Error("error creating user", "user", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -171,6 +170,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logger.Info("created session", "user", username)
 	c := http.Cookie{
 		Name:     "session_id",
 		Value:    id,

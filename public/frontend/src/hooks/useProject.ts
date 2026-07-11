@@ -17,9 +17,15 @@ const maxFileSize = 1024 * 1024 * 2;
 async function get(id: string) {
     try {
         const res = await fetch(`${api}/project/${id}`, { method: "GET" })
-        const project: Project | string = await res.json()
-        if (!res.ok) return { ...emptyProject, id }
-        if (typeof project === "string") return { ...emptyProject, id }
+        console.log(res)
+        if (!res.ok) {
+            if (res.status === 401) window.location.replace("/login")
+            if (res.redirected) {
+                window.location.replace("/login")
+            }
+            return { ...emptyProject, id }
+        }
+        const project: Project = await res.json()
         return project
     } catch (e) {
         console.error(e)

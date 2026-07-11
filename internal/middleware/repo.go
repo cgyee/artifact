@@ -14,7 +14,7 @@ import (
 )
 
 type Repository interface {
-	ValidSession(ctx context.Context, id string) error
+	ValidSession(ctx context.Context, id string) (Session, error)
 }
 
 type Session struct {
@@ -45,22 +45,22 @@ func NewMongoRepository(database string) *MongoRepository {
 	return &MongoRepository{coll: c.Database(database).Collection(coll)}
 }
 
-func (r *MongoRepository) ValidSession(ctx context.Context, id string) error {
+func (r *MongoRepository) ValidSession(ctx context.Context, id string) (Session, error) {
 	res := r.coll.FindOne(ctx, bson.M{"id": id})
+	session := Session{}
 	if res.Err() != nil {
 		if errors.Is(res.Err(), mongo.ErrNoDocuments) {
-			return ErrNotFound
+			return session, ErrNotFound
 		}
-		return res.Err()
+		return session, res.Err()
 	}
-	session := Session{}
 	if err := res.Decode(&session); err != nil {
-		return err
+		return session, err
 	}
 	if time.Now().After(session.ExpiresAt) {
-		return ErrNotFound
+		return session, ErrNotFound
 	}
-	return nil
+	return session, nil
 }
 
 func (r *MongoRepository) revokeSession(ctx context.Context, id string) error {
