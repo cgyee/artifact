@@ -53,7 +53,7 @@ func main() {
 	go func() {
 		slog.Info("Starting server", "address", server.Addr)
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Server forced to shutdown due to: ", "error", err)
+			slog.Error("Server error ", "error", err)
 		}
 	}()
 	sig := make(chan os.Signal, 1)
@@ -63,7 +63,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Server forced to shutdown due to: ", "error", err)
+		slog.Error("Graceful shutdown error", "error", err)
 	}
 	dbCleanup()
 	slog.Info("Server stopped")
