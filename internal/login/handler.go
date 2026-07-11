@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"glitch/internal/middleware"
+	"glitch/internal/session"
 	"glitch/internal/user"
+	"glitch/internal/utils"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +24,8 @@ type userRepository interface {
 }
 
 type sessionRepository interface {
-	CreateSession(ctx context.Context, id string, userID string) error
+	CreateSession(ctx context.Context, sid string, uid string) error
+	RevokeSession(ctx context.Context, sid string) error
 }
 
 type Handler struct {
@@ -61,9 +64,10 @@ func NewHandler(userRepo userRepository, sessionRepo sessionRepository) *Handler
 	return &Handler{userRepo: userRepo, sessionRepo: sessionRepo, credentials: credentials}
 }
 
-func (h *Handler) Routes(mux *http.ServeMux) {
+func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) http.Handler) {
 	mux.HandleFunc("/api/login", h.login)
 	mux.HandleFunc("/api/callback", h.callback)
+	mux.Handle("GET /api/logout", utils.ApplyMiddleware(http.HandlerFunc(h.logout), middleware...))
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +93,34 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	authURL := "https://github.com/login/oauth/authorize?" + params.Encode()
 	logger.Info("redirecting to github")
 	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.LoggerFromContext(r.Context())
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		logger.Error("no session cookie")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	sessionID := cookie.Value
+	if err := h.sessionRepo.RevokeSession(r.Context(), sessionID); err != nil {
+		if !errors.Is(err, session.ErrNotFound) {
+			logger.Error("error revoking session", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		logger.Info("session not found during revoke", err)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:   "session_id",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	w.WriteHeader(http.StatusNoContent)
+	return
+
 }
 
 func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {

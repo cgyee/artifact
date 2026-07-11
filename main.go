@@ -36,12 +36,14 @@ func main() {
 	db, dbCleanup := database.Connect("glitch")
 	userStore := user.NewMongoRepository(db)
 	sessionStore := session.NewMongoRepository(db)
+	u := user.NewHandler(userStore)
 	p := project.NewProjectHandler(project.NewMongoRepository(db))
 	l := login.NewHandler(userStore, sessionStore)
 	s := middleware.NewSessionStore(sessionStore)
 	mux := http.NewServeMux()
+	u.Routes(mux, s.Session)
 	p.Routes(mux, s.Session)
-	l.Routes(mux)
+	l.Routes(mux, s.Session)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(index))

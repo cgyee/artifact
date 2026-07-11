@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"glitch/internal/middleware"
+	"glitch/internal/utils"
 	"io"
 	"mime"
 	"net/http"
@@ -49,12 +50,12 @@ func NewProjectHandler(repo repository) *Handler {
 }
 
 func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) http.Handler) {
-	mux.Handle("GET /api/project/new", applyMiddleware(http.HandlerFunc(h.create), middleware...))
-	mux.Handle("GET /api/project/{projectID}", applyMiddleware(http.HandlerFunc(h.get), middleware...))
-	mux.Handle("POST /api/project/{projectID}", applyMiddleware(http.HandlerFunc(h.save), middleware...))
-	mux.Handle("POST /api/project/{projectID}/images", applyMiddleware(http.HandlerFunc(h.saveImg), middleware...))
-	mux.Handle("GET /api/project/{projectID}/render", applyMiddleware(http.HandlerFunc(h.render), middleware...))
-	mux.Handle("GET /api/project/{projectID}/{fileName...}", applyMiddleware(http.HandlerFunc(h.file), middleware...))
+	mux.Handle("GET /api/project/new", utils.ApplyMiddleware(http.HandlerFunc(h.create), middleware...))
+	mux.Handle("GET /api/project/{projectID}", utils.ApplyMiddleware(http.HandlerFunc(h.get), middleware...))
+	mux.Handle("POST /api/project/{projectID}", utils.ApplyMiddleware(http.HandlerFunc(h.save), middleware...))
+	mux.Handle("POST /api/project/{projectID}/images", utils.ApplyMiddleware(http.HandlerFunc(h.saveImg), middleware...))
+	mux.Handle("GET /api/project/{projectID}/render", utils.ApplyMiddleware(http.HandlerFunc(h.render), middleware...))
+	mux.Handle("GET /api/project/{projectID}/{fileName...}", utils.ApplyMiddleware(http.HandlerFunc(h.file), middleware...))
 	mux.Handle("GET /view/project/{projectID}", http.HandlerFunc(h.render))
 	mux.Handle("GET /view/project/{projectID}/{fileName...}", http.HandlerFunc(h.file))
 
@@ -268,14 +269,4 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(file))
 	logger.Info("rendered project", "file", "index.html")
 	return
-}
-
-func applyMiddleware(h http.Handler, middleware ...func(http.Handler) http.Handler) http.Handler {
-	if len(middleware) == 0 {
-		return h
-	}
-	for i := len(middleware) - 1; i >= 0; i-- {
-		h = middleware[i](h)
-	}
-	return h
 }

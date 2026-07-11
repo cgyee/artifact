@@ -62,7 +62,13 @@ func (r *MongoRepository) CreateSession(ctx context.Context, id string, userID s
 	return nil
 }
 
-func (r *MongoRepository) RevokeSession(ctx context.Context, id string) error {
-	_, err := r.coll.DeleteOne(ctx, bson.M{"id": id})
-	return err
+func (r *MongoRepository) RevokeSession(ctx context.Context, sid string) error {
+	res, err := r.coll.DeleteOne(ctx, bson.M{"id": sid})
+	if err != nil {
+		return err
+	}
+	if res.DeletedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

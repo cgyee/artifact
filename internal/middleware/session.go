@@ -45,7 +45,6 @@ func (s *SessionStore) Session(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), UserIDKey, sess.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
-		return
 	})
 }
 
