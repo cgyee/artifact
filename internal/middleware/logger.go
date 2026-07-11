@@ -16,7 +16,6 @@ var loggerKey = ctxKey{}
 func RequestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		//correlationID := r.Header.Get("X-Correlation-ID")
 		requestID := r.Header.Get("X-Request-ID")
 		if requestID == "" {
 			requestID = uuid.NewString()
@@ -26,7 +25,6 @@ func RequestLogger(next http.Handler) http.Handler {
 			"method", r.Method,
 			"path", path,
 			"requestID", requestID,
-			//"correlationID", correlationID,
 		)
 		ctx := context.WithValue(r.Context(), loggerKey, logger)
 		start := time.Now()

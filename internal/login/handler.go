@@ -49,11 +49,12 @@ func NewHandler(repo Repository) *Handler {
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/login", h.login)
-	mux.HandleFunc("GET /api/callback", h.callback)
+	mux.HandleFunc("/api/login", h.login)
+	mux.HandleFunc("/api/callback", h.callback)
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.LoggerFromContext(r.Context())
 	state := GenerateSecureToken(32)
 	cookie := http.Cookie{
 		Name:     "oauth_state",
@@ -69,21 +70,29 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		"client_id":    {h.credentials.ClientID},
 		"scope":        {"user:email read:user"},
 		"state":        {state},
-		"redirect_uri": {"http://glitch.local:8080/api/callback"},
+		"redirect_uri": {"http://preview.glitch.local:8080/api/callback"},
 	}
 
 	authURL := "https://github.com/login/oauth/authorize?" + params.Encode()
-	fmt.Println(authURL)
+	logger.Info("redirecting to github", "url", authURL)
+	logger.Info("state", "state", state)
+	logger.Info("cookie", "cookie", cookie)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.LoggerFromContext(r.Context())
 	cookie, err := r.Cookie("oauth_state")
+	if err != nil {
+		logger.Error("no oauth state cookie")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	githubTokenURL := fmt.Sprintf("https://github.com/login/oauth/access_token")
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 	if cookie == nil || state != cookie.Value {
+		logger.Error("invalid state", "cookie", "state", state)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -127,7 +136,6 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 
 	req, _ = http.NewRequest("GET", "https://api.github.com/user", nil)
 	req.Header.Set("Authorization", "Bearer "+oauthResp.AccessToken)
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	resp, _ = http.DefaultClient.Do(req)
 	defer resp.Body.Close()
@@ -180,7 +188,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	})
 	logger.Info("logged in", "user", username)
-	http.Redirect(w, r, "http://glitch.local:5173/projects", http.StatusFound)
+	http.Redirect(w, r, "http://glitch.local:5173/dashboard", http.StatusFound)
 	return
 
 }

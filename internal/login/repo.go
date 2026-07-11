@@ -62,8 +62,14 @@ func (r *MongoRepository) CreateUser(ctx context.Context, username string) error
 }
 
 func (r *MongoRepository) CreateSession(ctx context.Context, id string, userID string) error {
-	//if _, err := r.sessionColl.InsertOne(ctx, bson.M{"id": id, "user_id": userID, "created_at": time.Now(), "expires_at": time.Now().Add(24 * time.Hour)}); err != nil {
-	if _, err := r.sessionColl.UpdateOne(ctx, bson.M{"id": id, "user_id": userID}, bson.M{"id": id, "user_id": userID, "created_at": time.Now(), "expires_at": time.Now().Add(72 * time.Hour)}); err != nil {
+	filter := bson.M{"id": id, "user_id": userID}
+	update := bson.M{"$set": bson.M{
+		"id":         id,
+		"user_id":    userID,
+		"created_at": time.Now(),
+		"expires_at": time.Now().Add(72 * time.Hour),
+	}}
+	if _, err := r.sessionColl.UpdateMany(ctx, filter, update); err != nil {
 		return err
 	}
 	return nil
