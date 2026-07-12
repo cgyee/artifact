@@ -14,9 +14,9 @@ type Project struct {
 	ID        string          `bson:"id" json:"id"`
 	Files     map[string]File `bson:"files" json:"files"`
 	Name      string          `bson:"name" json:"name"`
-	OwnerID   string          `bson:"ownerId" json:"ownerId"`
-	CreatedAt time.Time       `bson:"createdAt" json:"createdAt"`
-	UpdatedAt time.Time       `bson:"updatedAt" json:"updatedAt"`
+	OwnerID   string          `bson:"ownerId" json:"-"`
+	CreatedAt time.Time       `bson:"createdAt" json:"-"`
+	UpdatedAt time.Time       `bson:"updatedAt" json:"-"`
 }
 type File struct {
 	Content string `bson:"content" json:"content"`
@@ -45,12 +45,16 @@ func (r *MongoRepository) Get(ctx context.Context, id string) (Project, error) {
 
 func (r *MongoRepository) Save(ctx context.Context, project Project) error {
 	update := bson.M{"$set": bson.M{
-		"id":        project.ID,
-		"files":     project.Files,
-		"ownerId":   project.OwnerID,
-		"createdAt": project.CreatedAt,
-		"updatedAt": time.Now(),
+		"id":      project.ID,
+		"files":   project.Files,
+		"ownerId": project.OwnerID,
 	},
+		"$setOnInsert": bson.M{
+			"createdAt": time.Now(),
+		},
+		"$currentDate": bson.M{
+			"updatedAt": true,
+		},
 	}
 	opts := options.UpdateOne().SetUpsert(true)
 	_, err := r.coll.UpdateOne(ctx, bson.M{"id": project.ID}, update, opts)

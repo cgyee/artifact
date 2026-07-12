@@ -58,7 +58,7 @@ func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) ht
 	mux.Handle("GET /api/project/{projectID}/render", utils.ApplyMiddleware(http.HandlerFunc(h.render), middleware...))
 	mux.Handle("GET /api/project/{projectID}/{fileName...}", utils.ApplyMiddleware(http.HandlerFunc(h.file), middleware...))
 	mux.Handle("GET /view/project/{projectID}", http.HandlerFunc(h.render))
-	mux.Handle("GET /view/project/{projectID}/{fileName...}", http.HandlerFunc(h.file))
+	mux.Handle("GET /view/project/{projectID}/{fileName...}", http.HandlerFunc(h.viewFile))
 
 }
 
@@ -84,6 +84,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	project.Files = defaults
 	logger.Info("creating new project", "userID", userID)
 	if err := h.repo.Save(r.Context(), project); err != nil {
+		logger.Error("error creating new project", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -152,18 +153,30 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	if err := json.Unmarshal(data, &project); err != nil {
 		logger.Error("error unmarshaling request body", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if project.OwnerID != userID {
+	p, err := h.repo.Get(r.Context(), projectID)
+	if errors.Is(err, ErrNotFound) {
+		logger.Error("project not found")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		logger.Error("error getting project", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if p.OwnerID != userID {
 		logger.Error("user is not owner of project", "userID", userID)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	if err := h.repo.Save(r.Context(), project); err != nil {
+	p.Files = project.Files
+	p.Name = project.Name
+	if err := h.repo.Save(r.Context(), p); err != nil {
 		logger.Error("error saving project", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -200,10 +213,11 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFileSize)
 	if err := r.ParseMultipartForm(maxFileSize); err != nil {
 		logger.Error("error parsing form", "error", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		res, _ := json.Marshal(ErrorResponse{Error: "Error parsing form"})
 		w.Write(res)
 		return
@@ -252,6 +266,11 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	project, err := h.repo.Get(r.Context(), projectID)
 	if errors.Is(err, ErrNotFound) {
 		logger.Error("project not found", "projectID", projectID)
@@ -263,27 +282,81 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ext := filepath.Ext(file)
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		contentType = "application/octet-stream"
+	if project.OwnerID != userID {
+		logger.Error("user is not owner of project", "userID", userID)
+		w.WriteHeader(http.StatusForbidden)
+		return
 	}
-	var content []byte
-	if !(ext == ".html" || ext == ".js" || ext == ".css") {
-		content, err = base64.StdEncoding.DecodeString(project.Files[file].Content)
-		if err != nil {
-			logger.Error("error decoding file", "error", err, "file", file)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	} else {
-		content = []byte(project.Files[file].Content)
+	content, err := h.parseFileContent(file, project.Files)
+	if err != nil {
+		logger.Error("error parsing file", "error", err, "file", file)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	contentType := h.parseContentType(file)
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(content)))
 	w.Write(content)
 	logger.Info("served file", "fileName", file)
 	return
+}
+
+func (h *Handler) viewFile(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("projectID")
+	logger := middleware.LoggerFromContext(r.Context()).With("projectID", projectID)
+	logger.Info("serving file", "projectID", projectID)
+	file := r.PathValue("fileName")
+	if file == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	project, err := h.repo.Get(r.Context(), projectID)
+	if errors.Is(err, ErrNotFound) {
+		logger.Error("project not found", "projectID", projectID)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		logger.Error("error getting project", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	content, err := h.parseFileContent(file, project.Files)
+	if err != nil {
+		logger.Error("error parsing file", "error", err, "file", file)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	contentType := h.parseContentType(file)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(content)))
+	w.Write(content)
+	logger.Info("served file", "fileName", file)
+	return
+}
+
+func (h *Handler) parseFileContent(fileName string, files map[string]File) ([]byte, error) {
+	ext := filepath.Ext(fileName)
+	var content []byte
+	if !(ext == ".html" || ext == ".js" || ext == ".css") {
+		c, err := base64.StdEncoding.DecodeString(files[fileName].Content)
+		if err != nil {
+			return []byte{}, err
+		}
+		content = c
+	} else {
+		content = []byte(files[fileName].Content)
+	}
+	return content, nil
+}
+
+func (h *Handler) parseContentType(fileName string) string {
+	ext := filepath.Ext(fileName)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return contentType
 }
 
 func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
