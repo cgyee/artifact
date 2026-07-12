@@ -9,14 +9,14 @@ import (
 	"net/http"
 )
 
-type UserRepository interface {
+type Repository interface {
 	GetUser(ctx context.Context, username string) (User, error)
 }
 type Handler struct {
-	userRepo UserRepository
+	userRepo Repository
 }
 
-func NewHandler(userRepo UserRepository) *Handler {
+func NewHandler(userRepo Repository) *Handler {
 	return &Handler{userRepo: userRepo}
 }
 

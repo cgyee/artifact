@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -67,15 +68,21 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		projectID = id.String()
 	}
 	url := fmt.Sprintf("/project/%s", projectID)
-	project := Project{ID: projectID}
 	logger := middleware.LoggerFromContext(r.Context()).With("projectID", projectID)
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		logger.Error("user not logged in")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	project := Project{ID: projectID, OwnerID: userID, CreatedAt: time.Now()}
 	defaults := map[string]File{
 		"index.html": {Content: "<h1>Hello, world!</h1>"},
 		"styles.css": {Content: "body { color: red }"},
 		"app.js":     {Content: "console.log('Hello, world!')"},
 	}
 	project.Files = defaults
-	logger.Info("creating new project", "projectID", projectID)
+	logger.Info("creating new project", "userID", userID)
 	if err := h.repo.Save(r.Context(), project); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -88,8 +95,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectID")
 	logger := middleware.LoggerFromContext(r.Context()).With("projectID", projectID)
-	project, err := h.repo.Get(r.Context(), projectID)
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		logger.Error("user not logged in")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	logger.Info("getting project")
+	project, err := h.repo.Get(r.Context(), projectID)
 	if errors.Is(err, ErrNotFound) {
 		logger.Error("project not found")
 		w.WriteHeader(http.StatusNotFound)
@@ -98,6 +111,11 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("error getting project", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if project.OwnerID != userID {
+		logger.Error("user is not owner of project", "userID", userID)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	data, err := json.Marshal(project)
@@ -116,6 +134,12 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectID")
 	logger := middleware.LoggerFromContext(r.Context()).With("projectID", projectID)
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		logger.Error("user not logged in")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	logger.Info("saving project")
 	body := r.Body
 	project := Project{
@@ -134,7 +158,11 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
+	if project.OwnerID != userID {
+		logger.Error("user is not owner of project", "userID", userID)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	if err := h.repo.Save(r.Context(), project); err != nil {
 		logger.Error("error saving project", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -148,7 +176,13 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("projectID")
+	userID, ok := middleware.UserIDFromContext(r.Context())
 	logger := middleware.LoggerFromContext(r.Context()).With("projectID", projectID)
+	if !ok {
+		logger.Error("user not logged in")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	logger.Info("saving image", "projectID", projectID)
 	project, err := h.repo.Get(r.Context(), projectID)
 	if errors.Is(err, ErrNotFound) {
@@ -159,6 +193,11 @@ func (h *Handler) saveImg(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("error getting project", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if project.OwnerID != userID {
+		logger.Error("user is not owner of project", "userID", userID)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	if err := r.ParseMultipartForm(maxFileSize); err != nil {
@@ -214,7 +253,6 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	project, err := h.repo.Get(r.Context(), projectID)
-
 	if errors.Is(err, ErrNotFound) {
 		logger.Error("project not found", "projectID", projectID)
 		w.WriteHeader(http.StatusNotFound)
