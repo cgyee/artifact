@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Files, Selection, Project } from '../types'
-import { debounce } from '../util/debounce'
+import { debounce } from '../utils/debounce'
+import apiFetch from "../utils/apiFetch.ts";
 
 const api = "/api"
 const emptyProject: Project = {
@@ -16,10 +17,10 @@ const maxFileSize = 1024 * 1024 * 2;
 
 async function get(id: string) {
     try {
-        const res = await fetch(`${api}/project/${id}`, { method: "GET" })
+        const res = await apiFetch(`${api}/project/${id}`, { method: "GET" })
         console.log(res)
         if (!res.ok) {
-            if (res.status === 401) window.location.replace("/login")
+            if ((res.status === 401) || res.status === 403) window.location.replace("/dashboard")
             if (res.redirected) {
                 window.location.replace("/login")
             }
@@ -35,7 +36,7 @@ async function get(id: string) {
 
 async function set(id: string, files: Files) {
     try {
-        await fetch(`${api}/project/${id}`, {
+        await apiFetch(`${api}/project/${id}`, {
             method: "POST",
             body: JSON.stringify({ files }),
         })
@@ -81,7 +82,7 @@ export default function useProject(id: string) {
 
         setProject(next)
         try {
-            const res = await fetch(`${api}/project/${id}/images`, {
+            const res = await apiFetch(`${api}/project/${id}/images`, {
                 method: "POST",
                 body: formData,
             })

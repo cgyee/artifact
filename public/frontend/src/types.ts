@@ -29,3 +29,8 @@ export type LogEntry = {
     timestamp: number
     stack?: string
 }
+
+export type User = {
+    username: string
+    createdAt: string
+}

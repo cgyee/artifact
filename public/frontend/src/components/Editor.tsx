@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import type {File, Kind} from "../types";
-import { debounce } from "../util/debounce";
+import { debounce } from "../utils/debounce";
 import CodeMirror from "@uiw/react-codemirror"
 import { javascript } from "@codemirror/lang-javascript";
 import { html } from "@codemirror/lang-html";
