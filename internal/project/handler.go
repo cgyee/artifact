@@ -43,7 +43,7 @@ func NewProjectHandler(repo repository) *Handler {
 	clientUrl := os.Getenv("CLIENT_URL")
 	var script string
 	if clientUrl == "" {
-		script = strings.ReplaceAll(previewScript, "CLIENT_URL", "http://glitch.local:5173")
+		script = strings.ReplaceAll(previewScript, "CLIENT_URL", "http://glitch.test:5173")
 	} else {
 		script = strings.ReplaceAll(previewScript, "CLIENT_URL", clientUrl)
 	}
@@ -57,7 +57,7 @@ func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) ht
 	mux.Handle("POST /api/project/{projectID}/images", utils.ApplyMiddleware(http.HandlerFunc(h.saveImg), middleware...))
 	mux.Handle("GET /api/project/{projectID}/render", utils.ApplyMiddleware(http.HandlerFunc(h.render), middleware...))
 	mux.Handle("GET /api/project/{projectID}/{fileName...}", utils.ApplyMiddleware(http.HandlerFunc(h.file), middleware...))
-	mux.Handle("GET /view/project/{projectID}", http.HandlerFunc(h.render))
+	mux.Handle("GET /view/project/{projectID}/render", http.HandlerFunc(h.render))
 	mux.Handle("GET /view/project/{projectID}/{fileName...}", http.HandlerFunc(h.viewFile))
 
 }

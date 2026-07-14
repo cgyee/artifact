@@ -87,7 +87,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		"client_id":    {h.credentials.ClientID},
 		"scope":        {"user:email read:user"},
 		"state":        {state},
-		"redirect_uri": {"http://glitch.local:8080/api/callback"},
+		"redirect_uri": {"http://glitch.test:8080/api/callback"},
 	}
 
 	authURL := "https://github.com/login/oauth/authorize?" + params.Encode()
@@ -232,7 +232,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	})
 	logger.Info("logged in", "user", username)
-	http.Redirect(w, r, "http://glitch.local:5173/dashboard", http.StatusFound)
+	http.Redirect(w, r, "http://glitch.test:5173/dashboard", http.StatusFound)
 	return
 
 }
