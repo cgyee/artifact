@@ -18,7 +18,6 @@ const maxFileSize = 1024 * 1024 * 2;
 async function get(id: string) {
     try {
         const res = await apiFetch(`${api}/project/${id}`, { method: "GET" })
-        console.log(res)
         if (!res.ok) {
             if ((res.status === 401) || res.status === 403) window.location.replace("/dashboard")
             if (res.redirected) {

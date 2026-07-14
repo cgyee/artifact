@@ -43,6 +43,20 @@ func (r *MongoRepository) Get(ctx context.Context, id string) (Project, error) {
 	return p, err
 }
 
+func (r *MongoRepository) GetAll(ctx context.Context, ownerID string) ([]Project, error) {
+	filter := bson.M{"ownerId": ownerID}
+	res, err := r.coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Close(ctx)
+	var projects []Project
+	if err := res.All(ctx, &projects); err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
 func (r *MongoRepository) Save(ctx context.Context, project Project) error {
 	update := bson.M{"$set": bson.M{
 		"id":      project.ID,

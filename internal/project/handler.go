@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -27,6 +26,7 @@ type ErrorResponse struct {
 type repository interface {
 	Save(ctx context.Context, project Project) error
 	Get(ctx context.Context, projectID string) (Project, error)
+	GetAll(ctx context.Context, ownerID string) ([]Project, error)
 }
 
 type Handler struct {
@@ -51,6 +51,7 @@ func NewProjectHandler(repo repository) *Handler {
 }
 
 func (h *Handler) Routes(mux *http.ServeMux, middleware ...func(http.Handler) http.Handler) {
+	mux.Handle("GET /api/projects", utils.ApplyMiddleware(http.HandlerFunc(h.getProjects), middleware...))
 	mux.Handle("GET /api/project/new", utils.ApplyMiddleware(http.HandlerFunc(h.create), middleware...))
 	mux.Handle("GET /api/project/{projectID}", utils.ApplyMiddleware(http.HandlerFunc(h.get), middleware...))
 	mux.Handle("POST /api/project/{projectID}", utils.ApplyMiddleware(http.HandlerFunc(h.save), middleware...))
@@ -75,7 +76,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	project := Project{ID: projectID, OwnerID: userID, CreatedAt: time.Now()}
+	project := Project{ID: projectID, OwnerID: userID}
 	defaults := map[string]File{
 		"index.html": {Content: "<h1>Hello, world!</h1>"},
 		"styles.css": {Content: "body { color: red }"},
@@ -357,6 +358,34 @@ func (h *Handler) parseContentType(fileName string) string {
 		contentType = "application/octet-stream"
 	}
 	return contentType
+}
+
+func (h *Handler) getProjects(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.LoggerFromContext(r.Context())
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		logger.Error("user not logged in")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	logger.Info("getting projects", "userID", userID)
+
+	projects, err := h.repo.GetAll(r.Context(), userID)
+	if err != nil {
+		logger.Error("error getting projects", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	data, err := json.Marshal(projects)
+	if err != nil {
+		logger.Error("error marshaling projects", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Write(data)
+
 }
 
 func (h *Handler) render(w http.ResponseWriter, r *http.Request) {
