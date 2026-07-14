@@ -14,7 +14,7 @@ const LogExplorer = ({logs, onLog} :Props) => {
 
     useEffect(() => {
         const handler = (e: MessageEvent) => {
-            if (e.origin !== "http://preview.glitch.local:8080") return
+            if (e.origin !== "http://preview.glitch.test:8080") return
             if (e?.data?.source !== "preview") return
             onLog(e.data)
         }

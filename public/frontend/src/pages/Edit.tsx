@@ -33,7 +33,7 @@ export const Edit = () => {
                 onChange={(content: string) => updateContent(selection.path, content)}
                 name={selection.path}
                 kind={selection.kind}
-                src={`/api/project/${projectId}`}
+                src={`/view/project/${projectId}`}
                 resetLogs={() => onLogs([])}
             />
             <LogExplorer logs={logs} onLog={(log) => onLogs([log])} />

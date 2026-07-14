@@ -7,7 +7,7 @@ import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 
 const APP_NAME = "artifact"
-const PREVIEW_HOST = "http://preview.glitch.local:8080"
+const PREVIEW_HOST = "http://preview.glitch.test:8080"
 
 type Props = {
     src: string

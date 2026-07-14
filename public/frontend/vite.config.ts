@@ -6,9 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    allowedHosts: ["glitch.local"],
+    allowedHosts: ["glitch.test"],
     proxy: {
       '/api': 'http://localhost:8080',
+      "view/": "http://localhost:8080/",
     }
   },
   test: {
